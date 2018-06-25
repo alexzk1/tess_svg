@@ -143,6 +143,8 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
             if (curr == "A" || curr == "a")
             {
+                //http://xahlee.info/js/svg_path_ellipse_arc.html
+                //https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
                 auto rxy    = getXY(strs, i).get();
                 auto xrot   = getX(strs, i).x();
                 auto laFlag = getX(strs, i).x();

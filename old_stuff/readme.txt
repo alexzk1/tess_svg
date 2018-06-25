@@ -1,0 +1,3 @@
+This folder contains some "backup" files. 
+Those was created when I revered local repo by ancident...
+May have use later.

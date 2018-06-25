@@ -1,0 +1,39 @@
+#ifndef IDUMPER_H
+#define IDUMPER_H
+#include <iostream>
+#include "GlDefs.h"
+#include <vector>
+#include "SvgProcessor.h"
+#include "json.hpp"
+
+class IDumper
+{
+protected:
+    std::ostream& outstr;
+    const std::string namePrefix;
+    virtual void dumpPath(const SvgProcessor::group_t &what) const = 0;
+public:
+
+    IDumper() = delete;
+    IDumper(const IDumper&) = delete;
+
+    explicit IDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix);
+    virtual ~IDumper(){}
+};
+
+
+class JsonDumper:public IDumper
+{
+protected:
+    const bool pretty;
+    virtual void dumpPath(const SvgProcessor::group_t &what) const;
+    void dumpVertexes(const Vertexes& what) const;
+public:
+    explicit JsonDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "", bool pretty = false):
+        IDumper(out, pr, namePrefix), pretty(pretty){dumpPath(pr.getTesselated());}
+    JsonDumper() = delete;
+    JsonDumper(const JsonDumper&) = delete;
+};
+
+
+#endif // IDUMPER_H

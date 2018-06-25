@@ -1,0 +1,82 @@
+#include "idumper.h"
+#include <iomanip>
+
+IDumper::IDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix):
+    outstr(out),
+    namePrefix(namePrefix)
+{
+}
+
+void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
+{
+    using namespace std;
+    using namespace nlohmann;
+
+    const static auto out_point  = [](const auto& point)
+    {
+        return json{point.x(), point.y()};
+    };
+
+    const auto out_vertex = [this](const Vertexes &what)->json
+    {
+        json vertex = json::array();
+        for (const auto & v : what)
+        {
+            vertex.push_back(v.x());
+            vertex.push_back(v.y());
+        }
+        return vertex;
+    };
+
+    const auto out_polygon = [this, &out_vertex](const auto& g)
+    {
+        const auto center = g.second.bounds.get_center();
+        json poly = json::object();
+        poly["vertexes"] = out_vertex(g.second.vertexes);
+        poly["origin"]   = out_point(center);
+        return poly;
+    };
+
+    json object = json::object();
+
+    for (const auto& g : what)
+    {
+        bool morethan1 = g.second.pathes.size() > 1;
+
+        if (morethan1)
+        {
+            json group = json::object();
+            group["outline"] = out_polygon(g);
+
+            json cont = json::object();
+            for (const auto& p : g.second.pathes)
+                cont[p.first] = out_polygon(p);
+            group["contains"] = cont;
+            object[g.first] = group;
+        }
+        else
+        {
+            const auto& p = g.second.pathes.at(0);
+            object[p.first]  = out_polygon(p);
+        }
+
+    }
+
+    json obj2 = json::object();
+
+    if (!namePrefix.empty())
+    {
+        obj2["namespace"] = true;
+        obj2[namePrefix]  = object;
+    }
+
+    const auto& oj = (namePrefix.empty())?object:obj2;
+    if (pretty)
+        outstr << std::setw(4) << oj;
+    else
+        outstr << oj;
+}
+
+void JsonDumper::dumpVertexes(const Vertexes &what) const
+{
+}

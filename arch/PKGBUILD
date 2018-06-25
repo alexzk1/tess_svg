@@ -1,0 +1,33 @@
+# Contributor: Oleksiy Zakharov <alexzkhr@gmail.com>
+
+pkgname=tess_svg
+pkgver=0.1.0
+pkgrel=2
+pkgdesc="Translates SVG file into vertexes collections."
+
+provides=('tess_svg')
+
+#not sure, this one may work on arm too ...but never tried
+arch=('i686' 'x86_64' 'arm')
+url="https://github.com/alexzk1/tess_svg"
+
+license=('GPL')
+depends=(boost glut libxcb)
+#need qmake
+makedepends=(qt5-base)
+source=(git://github.com/alexzk1/tess_svg)
+md5sums=('SKIP')
+
+build() {
+  mkdir -p $srcdir/build
+  cd $srcdir/build
+  qmake-qt5 ../tess_svg/tess_svg.pro -spec linux-g++
+  make || return 1
+}
+
+package() {
+  cd $srcdir/build
+  install -D -m755 tess_svg $pkgdir/usr/bin/tess_svg  
+  install -d $pkgdir/usr/share/tess_svg  
+  cp $srcdir/tess_svg/generated_support/*.* $pkgdir/usr/share/tess_svg
+}

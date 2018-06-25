@@ -70,7 +70,7 @@ void JavaDumper::dumpVertexes(const Vertexes &what) const
     for (const auto& v : what)
     {
         outstr << std::setprecision(4) << v.x() << "f, " << std::setprecision(4) << v.y() << "f, ";
-        if (++cntr % 5 == 0)
+        if (++cntr % 6 == 0)
             outstr << std::endl;
     }
     outstr << "}";
@@ -179,7 +179,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
 
         if (morethan1)
         {
-            const auto name = "goroup_" + g.first;
+            const auto name = "group_" + g.first;
             auto center = g.second.bounds.get_center();
             outstr << "//group: " << g.first << std::endl;
             outstr << "SfPolygon " << name << "{";
@@ -208,7 +208,7 @@ void SFMLDumper::dumpVertexes(const Vertexes &what) const
     for (const auto& v : what)
     {
         outstr << std::setprecision(4) << v.x() << "f, " << std::setprecision(4) << v.y() << "f, ";
-        if (++cntr % 5 == 0)
+        if (++cntr % 6 == 0)
             outstr << std::endl;
     }
 }

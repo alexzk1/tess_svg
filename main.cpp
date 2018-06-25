@@ -71,7 +71,7 @@ int main(const int ac, const char** av)
     ("java,j", "output as Java")
     ("json,J", "output as JSON (packed)")
     ("prettyjson,P", "output as pretty JSON")
-    ("sfml,s", "output as C++ declaration, sfml based(sf_polygon.h).")
+    ("sfml,s", "output as C++ declaration (initializer list), sfml based(sf_polygon.h).")
     ;
 
     variables_map vm;

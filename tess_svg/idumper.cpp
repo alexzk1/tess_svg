@@ -211,7 +211,7 @@ void SFMLDumper::dumpVertexes(const Vertexes &what) const
 
     for (const auto& v : what)
     {
-        outstr << std::setprecision(4) << v.x() << "f, " << std::setprecision(4) << v.y() << "f, ";
+        outstr << std::setprecision(4) << v.x() << ", " << std::setprecision(4) << v.y() << ", ";
         if (++cntr % 6 == 0)
             outstr << std::endl;
     }

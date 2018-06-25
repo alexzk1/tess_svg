@@ -54,6 +54,7 @@ bool fexists(const std::string& name)
 
 extern int BEIZER_PARTS;
 extern int ELLIPSE_POINTS;
+extern bool USE_PATH_COMMENT;
 
 int main(const int ac, const char** av)
 {
@@ -71,6 +72,7 @@ int main(const int ac, const char** av)
 
     ("bparts", value<int>()->default_value(10), "amount of beizer parts to use on rasterize")
     ("epoints", value<int>()->default_value(1024), "amount of points on ellipse to use on rasterize")
+    ("nocomment", "if set disables commenting out of separated generated pathes in case of grouping")
     //should be same options as below in map keys
     ("java,j", "output as Java")
     ("json,J", "output as JSON (packed)")
@@ -87,6 +89,7 @@ int main(const int ac, const char** av)
         notify(vm);
         BEIZER_PARTS   = vm["bparts"].as<int>();
         ELLIPSE_POINTS = vm["epoints"].as<int>();
+        USE_PATH_COMMENT = !vm.count("nocomment");
     }
     catch (...)
     {

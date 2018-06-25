@@ -4,6 +4,8 @@
 #include <iomanip>
 #include "json.hpp"
 
+bool USE_PATH_COMMENT = true;
+
 IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix):
     outstr(out),
     namePrefix(std::move(namePrefix))
@@ -48,7 +50,8 @@ void JavaDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << ").setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
-            outstr << "/*" << std::endl;
+            if (USE_PATH_COMMENT)
+                outstr << "/*" << std::endl;
         }
         for (const auto& p : g.second.pathes)
         {
@@ -58,7 +61,7 @@ void JavaDumper::dumpPath(const SvgProcessor::group_t &what) const
             dumpVertexes(tess_result.vertexes);
             outstr << ").setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
         }
-        if (morethan1)
+        if (morethan1 && USE_PATH_COMMENT)
             outstr << "*/" << std::endl;
     }
     outstr << "};" << endl;
@@ -189,7 +192,8 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "};" << endl << name << ".setOrigin(" << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << ");" << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
-            outstr << "/*" << std::endl;
+            if (USE_PATH_COMMENT)
+                outstr << "/*" << std::endl;
         }
         for (const auto& p : g.second.pathes)
         {
@@ -199,7 +203,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             dumpVertexes(tess_result.vertexes);
             outstr << "};" << endl << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << ");" << endl << endl;
         }
-        if (morethan1)
+        if (morethan1 && USE_PATH_COMMENT)
             outstr << "*/" << std::endl;
     }
     outstr << "};" << endl;
@@ -255,7 +259,8 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }}," << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
-            outstr << "/*" << std::endl;
+            if (USE_PATH_COMMENT)
+                outstr << "/*" << std::endl;
         }
 
 
@@ -268,7 +273,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }}," << endl << endl;
         }
 
-        if (morethan1)
+        if (morethan1 && USE_PATH_COMMENT)
             outstr << "*/" << std::endl;
     }
     outstr << "};" << endl;

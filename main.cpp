@@ -66,8 +66,11 @@ int main(const int ac, const char** av)
     ("input,i", value<std::string>(), "input file name, if not set - using stdin")
     ("output,o", value<std::string>(), "output file name, if not set - using stdout")
     ("preffix,p", value<std::string>(), "custom prefix of the generated constants names, otherwise tries to use filenames, then empty.")
+
+    //should be same options as below in map keys
     ("java,j", "output as Java")
-    ("json,J", "output as JSON")
+    ("json,J", "output as JSON (packed)")
+    ("prettyjson,P", "output as pretty JSON")
     ;
 
     variables_map vm;
@@ -111,8 +114,10 @@ int main(const int ac, const char** av)
     SvgProcessor test(sptr);
     std::map<std::string, std::function<IDumperPtr()>> factories =
     {
+        //should be same "options" as above in menu
         {"java", [&] { return dumperFactory<JavaDumper>(optr, test, prefix);}},
-        {"json", [&] { return dumperFactory<JsonDumper>(optr, test, prefix);}},
+        {"json", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, false);}},
+        {"prettyjson", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, true);}},
     };
 
     test.postProcessTesselatedVerteces(shiftToZero);

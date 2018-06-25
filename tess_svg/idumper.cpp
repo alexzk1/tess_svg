@@ -186,7 +186,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
             outstr << "const SfPolygon " << name << "{";
             dumpVertexes(g.second.vertexes);
-            outstr << "};" << endl << name << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
+            outstr << "};" << endl << name << ".setOrigin(" << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << ");" << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
             outstr << "/*" << std::endl;
@@ -197,7 +197,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             auto center = tess_result.bounds.get_center();
             outstr << "const SfPolygon " << p.first << "{";
             dumpVertexes(tess_result.vertexes);
-            outstr << "};" << endl << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
+            outstr << "};" << endl << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << ");" << endl << endl;
         }
         if (morethan1)
             outstr << "*/" << std::endl;
@@ -237,6 +237,8 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
     //java has rules about class names used...so lets fix it.
     auto cname = fixClassName(namePrefix);
 
+    outstr << "#include <map>" << endl;
+    outstr << "#include <string>" << endl;
     outstr << "#include \"sf_polygon.h\"" << endl << endl << endl;
     outstr << "const std::map<std::string, SfPolygon> " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
     for (const auto& g : what)
@@ -250,7 +252,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
             outstr << "{\"" << name << "\", {";
             dumpVertexes(g.second.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f }," << endl << endl;
+            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }," << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
             outstr << "/*" << std::endl;
@@ -263,7 +265,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             auto center = tess_result.bounds.get_center();
             outstr << "{\"" << p.first << "\", {";
             dumpVertexes(tess_result.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f }," << endl << endl;
+            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }," << endl << endl;
         }
 
         if (morethan1)

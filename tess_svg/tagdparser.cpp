@@ -4,7 +4,8 @@
 
 #include "tagdparser.h"
 
-constexpr auto BEIZER_PARTS = 10;
+int BEIZER_PARTS   = 10;
+int ELLIPSE_POINTS = 1024;
 
 static bool checkIfDouble(const std::string& val) noexcept
 {
@@ -140,6 +141,16 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
                 continue;
             }
 
+            if (curr == "A" || curr == "a")
+            {
+                auto rxy    = getXY(strs, i).get();
+                auto xrot   = getX(strs, i).x();
+                auto laFlag = getX(strs, i).x();
+                auto sweepFlag = getX(strs, i).x();
+                auto xy = getXY(strs, i).get();
+                std::cerr << "Warning! Rasterizing of ellipse is not implemented yet." << std::endl;
+                continue;
+            }
 
             if (curr == "M" || curr == "L" || curr == "m" || curr == "l")
             {
@@ -173,7 +184,10 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
                     lastVert = GlVertex(delta.get() + tmp.get());
                 }
                 else
+                {
+                    std::cerr << "Source: " << src << std::endl;
                     throw std::runtime_error("Uknown SVG command: " + curr);
+                }
             }
         }
 

@@ -29,8 +29,6 @@ protected:
     void dumpVertexes(const Vertexes& what) const;
 public:
     explicit JavaDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "");
-    JavaDumper() = delete;
-    JavaDumper(const JavaDumper&) = delete;
 };
 
 
@@ -42,8 +40,6 @@ protected:
     void dumpVertexes(const Vertexes& what) const;
 public:
     explicit JsonDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "", bool pretty = true);
-    JsonDumper() = delete;
-    JsonDumper(const JsonDumper&) = delete;
 };
 
 class SFMLDumper: public IDumper
@@ -51,10 +47,18 @@ class SFMLDumper: public IDumper
 protected:
     void dumpPath(const SvgProcessor::group_t &what) const override;
     void dumpVertexes(const Vertexes& what) const;
+    explicit SFMLDumper(int inherited, std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "");
 public:
     explicit SFMLDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "");
-    SFMLDumper() = delete;
-    SFMLDumper(const SFMLDumper&) = delete;
+};
+
+class SFMLMapDumper: public SFMLDumper
+{
+protected:
+    void dumpPath(const SvgProcessor::group_t &what) const override;
+public:
+    explicit SFMLMapDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "");
+
 };
 
 template<class T, class ... Args>

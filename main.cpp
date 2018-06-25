@@ -52,6 +52,8 @@ bool fexists(const std::string& name)
 }
 
 
+extern int BEIZER_PARTS;
+extern int ELLIPSE_POINTS;
 
 int main(const int ac, const char** av)
 {
@@ -67,11 +69,14 @@ int main(const int ac, const char** av)
     ("output,o", value<std::string>(), "output file name, if not set - using stdout")
     ("preffix,p", value<std::string>(), "custom prefix of the generated constants names, otherwise tries to use filenames, then empty.")
 
+    ("bparts", value<int>()->default_value(10), "amount of beizer parts to use on rasterize")
+    ("epoints", value<int>()->default_value(1024), "amount of points on ellipse to use on rasterize")
     //should be same options as below in map keys
     ("java,j", "output as Java")
     ("json,J", "output as JSON (packed)")
     ("prettyjson,P", "output as pretty JSON")
     ("sfml,s", "output as C++ declaration (initializer list), sfml based(sf_polygon.h).")
+    ("sfmlmap,S", "output as C++ declaration in form of std::map (initializer list), sfml based(sf_polygon.h).")
     ;
 
     variables_map vm;
@@ -80,6 +85,8 @@ int main(const int ac, const char** av)
     {
         store(parse_command_line(ac, av, generic), vm);
         notify(vm);
+        BEIZER_PARTS   = vm["bparts"].as<int>();
+        ELLIPSE_POINTS = vm["epoints"].as<int>();
     }
     catch (...)
     {
@@ -108,7 +115,7 @@ int main(const int ac, const char** av)
     fn = (vm.count("output")) ? vm["output"].as<std::string>() : "";
     std::fstream out;
     if (!fn.empty())
-        out.open(fn, std::fstream::out | std::fstream::trunc);
+        out.open(fn, std::fstream::out);
     std::ostream& optr = (fn.empty()) ? std::cout : out;
 
 
@@ -120,6 +127,7 @@ int main(const int ac, const char** av)
         {"json", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, false);}},
         {"prettyjson", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, true);}},
         {"sfml", [&] { return dumperFactory<SFMLDumper>(optr, test, prefix);}},
+        {"sfmlmap", [&] { return dumperFactory<SFMLMapDumper>(optr, test, prefix);}},
     };
 
     test.postProcessTesselatedVerteces(shiftToZero);

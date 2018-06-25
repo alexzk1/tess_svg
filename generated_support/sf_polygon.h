@@ -14,6 +14,17 @@ public:
 
     explicit SfPolygon(const std::vector<float>& points_pairs)
     {
+        initFromVector(points_pairs);
+    }
+
+    explicit SfPolygon(const std::vector<float>& points_pairs, float originX, float originY)
+    {
+        initFromVector(points_pairs);
+        setOrigin(originX, originY);
+    }
+
+    void initFromVector(const std::vector<float>& points_pairs)
+    {
         assert(points_pairs.size() % 2 == 0); //must be pairs of x,y,x2,y2,x3,y3 etc
         size_t psize = points_pairs.size() / 2;
         setPointCount(psize);

@@ -71,6 +71,7 @@ int main(const int ac, const char** av)
     ("java,j", "output as Java")
     ("json,J", "output as JSON (packed)")
     ("prettyjson,P", "output as pretty JSON")
+    ("sfml,s", "output as C++ declaration, sfml based(sf_polygon.h).")
     ;
 
     variables_map vm;
@@ -118,6 +119,7 @@ int main(const int ac, const char** av)
         {"java", [&] { return dumperFactory<JavaDumper>(optr, test, prefix);}},
         {"json", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, false);}},
         {"prettyjson", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, true);}},
+        {"sfml", [&] { return dumperFactory<SFMLDumper>(optr, test, prefix);}},
     };
 
     test.postProcessTesselatedVerteces(shiftToZero);

@@ -26,7 +26,7 @@ static std::string fixClassName(std::string cname)
     }
     return cname;
 }
-
+//************************************************************************************************************************************************************
 void JavaDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
     using namespace std;
@@ -82,7 +82,7 @@ JavaDumper::JavaDumper(std::ostream &out, const SvgProcessor &pr, const std::str
     dumpPath(pr.getTesselated());
 }
 
-
+//************************************************************************************************************************************************************
 void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
     using namespace std;
@@ -162,4 +162,63 @@ JsonDumper::JsonDumper(std::ostream &out, const SvgProcessor &pr, const std::str
 {
     dumpPath(pr.getTesselated());
 }
+
+//************************************************************************************************************************************************************
+void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
+{
+    using namespace std;
+
+    //java has rules about class names used...so lets fix it.
+    auto cname = fixClassName(namePrefix);
+
+    cout << "#include \"sf_polygon.h\"" << endl << endl << endl;
+    cout << "namespace " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
+    for (const auto& g : what)
+    {
+        bool morethan1 = g.second.pathes.size() > 1;
+
+        if (morethan1)
+        {
+            const auto name = "goroup_" + g.first;
+            auto center = g.second.bounds.get_center();
+            outstr << "//group: " << g.first << std::endl;
+            outstr << "SfPolygon " << name << "{";
+            dumpVertexes(g.second.vertexes);
+            outstr << "};" << endl << name << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
+            outstr << std::endl;
+        }
+        for (const auto& p : g.second.pathes)
+        {
+            auto &tess_result = p.second; //TessResult
+            auto center = tess_result.bounds.get_center();
+            outstr << "SfPolygon " << p.first << "{";
+            dumpVertexes(tess_result.vertexes);
+            outstr << "};" << endl << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
+        }
+        if (morethan1)
+            outstr << "//end-of-group: " << g.first << std::endl;
+    }
+    cout << "};" << endl;
+}
+
+void SFMLDumper::dumpVertexes(const Vertexes &what) const
+{
+    int cntr = 1;
+
+    for (const auto& v : what)
+    {
+        outstr << std::setprecision(4) << v.x() << "f, " << std::setprecision(4) << v.y() << "f, ";
+        if (++cntr % 5 == 0)
+            outstr << std::endl;
+    }
+}
+
+SFMLDumper::SFMLDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix):
+    IDumper(out, pr, namePrefix)
+{
+    dumpPath(pr.getTesselated());
+}
+
+
+
 

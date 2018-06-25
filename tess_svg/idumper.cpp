@@ -184,7 +184,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             const auto name = "group_" + g.first;
             auto center = g.second.bounds.get_center();
             outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << "SfPolygon " << name << "{";
+            outstr << "const SfPolygon " << name << "{";
             dumpVertexes(g.second.vertexes);
             outstr << "};" << endl << name << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
@@ -195,7 +195,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
         {
             auto &tess_result = p.second; //TessResult
             auto center = tess_result.bounds.get_center();
-            outstr << "SfPolygon " << p.first << "{";
+            outstr << "const SfPolygon " << p.first << "{";
             dumpVertexes(tess_result.vertexes);
             outstr << "};" << endl << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << "f," << std::setprecision(4) << center.y() << "f);" << endl << endl;
         }
@@ -238,7 +238,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
     auto cname = fixClassName(namePrefix);
 
     outstr << "#include \"sf_polygon.h\"" << endl << endl << endl;
-    outstr << "std::map<std::string, SfPolygon> " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
+    outstr << "const std::map<std::string, SfPolygon> " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
     for (const auto& g : what)
     {
         bool morethan1 = g.second.pathes.size() > 1;

@@ -37,17 +37,17 @@ protected:
 
             if (vertexes.size() > 2)
             {
-                auto result = vertexes.begin();
-                for (auto first = vertexes.begin(), last = vertexes.end() - 1; first != last; ++first)
+                for (auto it = vertexes.begin(); it != vertexes.end() - 1;)
                 {
-                    if (!(*first == *(first + 1)))
+                    if (*it == *(it + 1))
                     {
-                        *result = *first;
-                        ++result;
+                        std::cerr << "Equals: " << it->x() << "; " << it->y();
+                        it = vertexes.erase(it);
+                        std::cerr << " to " << it->x() << "; " << it->y() << std::endl;
                     }
+                    else
+                        ++it;
                 }
-
-                vertexes.erase(result + 1, vertexes.end());
                 if (vertexes.size() < 3)
                     throw std::runtime_error("Lost too many points doing cleanse of the sames.");
             }

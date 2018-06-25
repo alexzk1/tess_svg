@@ -160,17 +160,10 @@ public:
         return std::string(tmpbuf);
     }
 
-    typename std::enable_if < !std::numeric_limits<T>::is_integer, bool >::type operator == (const Vector2<T, precission>& c) const
+    bool operator == (const Vector2<T, precission>& c) const
     {
         bool ex = almost_equal<T, precission>(x(), c.x());
         bool ey = almost_equal<T, precission>(y(), c.y());
-        return ex && ey;
-    }
-
-    typename std::enable_if < !std::numeric_limits<T>::is_integer, bool >::type operator == (const sf::Vector2<T>& c)
-    {
-        bool ex = almost_equal<T, precission>(x(), c.x);
-        bool ey = almost_equal<T, precission>(y(), c.y);
         return ex && ey;
     }
 };
@@ -190,11 +183,6 @@ template<sf::PrimitiveType TPrimitive> struct VertexVector : public std::vector<
     }
 };
 
-template <class T, int precission>
-bool operator == (const sf::Vector2<T>& c1, const Vector2<T, precission>& c2)
-{
-    return c2 == c1;
-}
 
 template <class T, int precission>
 sincos_cached<T, precission> Vector2<T, precission>::sincos;

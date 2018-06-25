@@ -203,11 +203,9 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     if (current_path.size())
         result.push_back(current_path);
 
-    //    std::cerr << "Has "<<result.back().size()<< " points\n";
+    //    std::cerr << "Has " << result.back().size() << " points\n";
     //    for (auto& p : result.back())
-    //    {
-    //        std::cerr << p.x() <<"; " << p.y() << std::endl;
-    //    }
+    //        std::cerr << p.x() << "; " << p.y() << std::endl;
 
     for (auto& r : result)
     {

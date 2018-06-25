@@ -25,26 +25,16 @@ T roundTo(T value)
 }
 
 template<class T, int precission>
-typename std::enable_if < !std::numeric_limits<T>::is_integer, bool >::type almost_equal(const T& x, const T& y)
+typename std::enable_if < !std::numeric_limits<T>::is_integer, bool >::type almost_equal(T x, T y)
 {
-    if (x == y) //trying compiler's solution 1st of all
-        return true;
-
-    constexpr T err = std::numeric_limits<T>::epsilon() * std::numeric_limits<T>::round_error();
-    constexpr uint64_t e = std::pow(10, precission);
-
-    // the machine epsilon has to be scaled to the magnitude of the values used
-    // and multiplied by the desired precision in ULPs (units in the last place)
-    auto dv = (uint64_t)(e * std::abs(x - y));
-    auto sv = (uint64_t)(err * std::abs(x + y) * e);
-    return  dv <= sv || dv <= std::numeric_limits<T>::min();
+    return std::abs(x - y) <= std::numeric_limits<T>::epsilon();
 }
 
 template <class T>
 class floats_comparer
 {
 public:
-    bool operator()(const T& t1, const T& t2) const
+    bool operator()(T t1, T t2) const
     {
         return almost_equal<T>(t1, t2);
     }

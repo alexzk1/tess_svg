@@ -12,12 +12,12 @@ public:
     {
     }
 
-    explicit SfPolygon(const std::vector<float>& points_pairs)
+    SfPolygon(const std::vector<float>& points_pairs)
     {
         initFromVector(points_pairs);
     }
 
-    explicit SfPolygon(const std::vector<float>& points_pairs, float originX, float originY)
+    SfPolygon(const std::vector<float>& points_pairs, float originX, float originY)
     {
         initFromVector(points_pairs);
         setOrigin(originX, originY);

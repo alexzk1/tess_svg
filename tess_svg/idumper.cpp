@@ -250,9 +250,9 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             const auto name = "group_" + g.first;
             auto center = g.second.bounds.get_center();
             outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << "{\"" << name << "\", {";
+            outstr << "{\"" << name << "\", {{";
             dumpVertexes(g.second.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }," << endl << endl;
+            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }}," << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
             outstr << "/*" << std::endl;
@@ -263,9 +263,9 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
         {
             auto &tess_result = p.second; //TessResult
             auto center = tess_result.bounds.get_center();
-            outstr << "{\"" << p.first << "\", {";
+            outstr << "{\"" << p.first << "\", {{";
             dumpVertexes(tess_result.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }," << endl << endl;
+            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }}," << endl << endl;
         }
 
         if (morethan1)

@@ -2,7 +2,7 @@
 
 pkgname=tess_svg
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Translates SVG file into vertexes collections."
 
 provides=('tess_svg')

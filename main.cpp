@@ -85,6 +85,8 @@ int main(const int ac, const char** av)
     bool error_opts = false;
     try
     {
+        if (ac < 2)
+            throw std::runtime_error("No options given.");
         store(parse_command_line(ac, av, generic), vm);
         notify(vm);
         BEIZER_PARTS   = vm["bparts"].as<int>();

@@ -105,7 +105,7 @@ private:
     Tesselate ts;
     pugi::xml_document doc;
     group_t tesselated;
-    void parse(const pugi::xml_node&node, const pugi::xml_node &parent, Loops *loops, Loops *total_loops);
+    void parse(const pugi::xml_node&node, const pugi::xml_node &parent, Loops *loops, Loops *total_loops_param);
 public:
 
     SvgProcessor() = default;

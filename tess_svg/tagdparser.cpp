@@ -60,11 +60,11 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
     bool path_started = true;
 
-    for (size_t i = 0, n = strs.size(); i < n; i++)
+    for (size_t i = 0, n = strs.size(); i < n; ++i)
     {
 
         if (checkIfDouble(strs.at(i)))
-            i--;
+            --i;
         else
             curr =  strs.at(i);
 

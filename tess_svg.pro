@@ -52,4 +52,5 @@ HEADERS += \
     tess_svg/tagdparser.h \
     tess_svg/Tesselate.h \
     engine/sincos_cached.h \
-    engine/Vector2.h
+    engine/Vector2.h \
+    util_helpers.h

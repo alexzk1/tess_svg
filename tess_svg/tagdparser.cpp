@@ -1,11 +1,30 @@
 #include <iostream>
 #include <vector>
 #include <regex>
+#include <array>
+#include <math.h>
 
+#include "engine/Vector2.h"
+#include "engine/sincos_cached.h"
 #include "tagdparser.h"
 
 int BEIZER_PARTS   = 10;
 int ELLIPSE_POINTS = 1024;
+
+//Rotate a point by an angle around the origin point.
+template <class T>
+std::array<T, 2> rotate(T x, T y, T angle)
+{
+    static sincos_cached<T, 10> sincos;
+    return {{x * sincos.cos(angle) - y * sincos.sin(angle), y * sincos.cos(angle) + x * sincos.sin(angle)}};
+}
+
+//Return angle between x axis and point knowing given center.
+template <class T>
+T pointAngle(T cx, T cy, T px, T py)
+{
+    return std::atan2(py - cy, px - cx);
+}
 
 static bool checkIfDouble(const std::string& val) noexcept
 {
@@ -145,12 +164,64 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
             {
                 //http://xahlee.info/js/svg_path_ellipse_arc.html
                 //https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
+                //https://github.com/igagis/svgren/blob/master/src/svgren/Renderer.cpp
+
                 auto rxy    = getXY(strs, i).get();
                 auto xrot   = getX(strs, i).x();
-                auto laFlag = getX(strs, i).x();
-                auto sweepFlag = getX(strs, i).x();
-                auto xy = getXY(strs, i).get();
-                std::cerr << "Warning! Rasterizing of ellipse is not implemented yet." << std::endl;
+                bool laFlag = getX(strs, i).x();
+                bool sweepFlag = getX(strs, i).x();
+                auto xy  = delta.get() + getXY(strs, i).get(); //now it is absolute
+
+                //                double radiiRatio = rxy.y / rxy.x;
+                //                if (radiiRatio <= 0)
+                //                    continue;
+                //                //cancel rotation of end point
+                //                double xe, ye;
+                //                {
+                //                    auto xxyy = xy.get() - lastVert.get();
+
+                //                    auto res = rotate(xxyy.x(), xxyy.y(), deg2rad(xrot));
+                //                    xe = res[0];
+                //                    ye = res[1];
+                //                }
+                //                ye /= radiiRatio;
+
+                //                //Find the angle between the end point and the x axis
+                //                auto angle = pointAngle(double(0), double(0), xe, ye);
+
+                //                //Put the end point onto the x axis
+                //                xe = std::sqrt(xe * xe + ye * ye);
+                //                ye = 0;
+
+                //                //Update the x radius if it is too small
+                //                auto rx = std::fmax(rxy.x, xe / 2.);
+
+                //                //Find one circle center
+                //                auto xc = xe / 2.;
+                //                auto yc = std::sqrt(rx * rx - xc * xc);
+
+                //                //Choose between the two circles according to flags
+                //                if (!(laFlag != sweepFlag))
+                //                    yc = -yc;
+
+
+                //                //Put the second point and the center back to their positions
+                //                {
+                //                    auto res = rotate(xe, double(0), angle);
+                //                    xe = res[0];
+                //                    ye = res[1];
+                //                }
+                //                {
+                //                    auto res = rotate(xc, yc, angle);
+                //                    xc = res[0];
+                //                    yc = res[1];
+                //                }
+
+                //                auto angle1 = pointAngle(xc, yc, double(0), double(0));
+                //                auto angle2 = pointAngle(xc, yc, xe, ye);
+
+                std::cerr << "Arc tag A/a is not implemented yet!" << std::endl;
+                lastVert = xy;
                 continue;
             }
 

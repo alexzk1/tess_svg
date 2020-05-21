@@ -190,7 +190,7 @@ sincos_cached<T, precission> Vector2<T, precission>::sincos;
 template <class T>
 T deg2rad(T deg)
 {
-    return deg * (T)PI / 180;
+    return deg * static_cast<T>(PI) / static_cast<T>(180);
 }
 
 #endif //BEAMMER_VECTOR2_H

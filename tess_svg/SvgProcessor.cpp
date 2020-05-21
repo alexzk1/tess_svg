@@ -63,8 +63,8 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
     }
     else
     {
-        Loops curr_loops, total_loops;
-        bool groupped = (node_name == "g");
+        Loops total_loops;
+        const bool groupped = (node_name == "g");
         std::string id(node.attribute("id").as_string());
         if (groupped)
             tesselated.emplace_back(std::make_pair(id, BoundedGroup()));
@@ -72,8 +72,8 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
         for (pugi::xml_node tool = node.first_child(); tool; tool = tool.next_sibling())
         {
             const std::string tool_id(tool.attribute("id").as_string());
-            curr_loops.clear();
-            total_loops.clear();
+            Loops curr_loops;
+
             parse(tool, node, &curr_loops, (groupped) ? &total_loops : nullptr);
 
             if (curr_loops.size() > 0)

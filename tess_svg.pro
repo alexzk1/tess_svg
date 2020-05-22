@@ -42,6 +42,7 @@ SOURCES += \
     engine/Vector2.cpp
 
 HEADERS += \
+    engine/my_math.h \
     tess_svg/Bounds.h \
     tess_svg/callbacks.h \
     tess_svg/GlDefs.h \

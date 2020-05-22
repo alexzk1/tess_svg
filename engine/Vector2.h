@@ -2,13 +2,12 @@
 // Created by alex on 6/27/15.
 //
 
-#ifndef BEAMMER_VECTOR2_H
-#define BEAMMER_VECTOR2_H
 #pragma once
 
 /* Includes - STL */
 #include <string>
-
+#include "my_math.h"
+#include "strfmt.h"
 /* Includes - SFML */
 #include <SFML/System/Vector2.hpp>
 #include "sincos_cached.h"
@@ -155,15 +154,13 @@ public:
 
     const std::string to_str() const
     {
-        char tmpbuf[256];
-        sprintf(tmpbuf, "[%f, %f] \n", x(), y());
-        return std::string(tmpbuf);
+        return stringfmt("[%f, %f] \n", x(), y());
     }
 
     bool operator == (const Vector2<T, precission>& c) const
     {
-        bool ex = almost_equal<T, precission>(x(), c.x());
-        bool ey = almost_equal<T, precission>(y(), c.y());
+        bool ex = mymath::almost_equal<T>(x(), c.x());
+        bool ey = mymath::almost_equal<T>(y(), c.y());
         return ex && ey;
     }
 };
@@ -193,4 +190,3 @@ T deg2rad(T deg)
     return deg * static_cast<T>(PI) / static_cast<T>(180);
 }
 
-#endif //BEAMMER_VECTOR2_H

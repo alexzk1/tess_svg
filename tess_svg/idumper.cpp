@@ -12,7 +12,7 @@ IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix
 {
 }
 
-static std::string fixClassName(std::string cname)
+static std::string fixClassName(std::string cname, bool force_upper_first)
 {
     cname.erase(remove_if(cname.begin(), cname.end(), [](auto c)->bool
     {
@@ -24,7 +24,9 @@ static std::string fixClassName(std::string cname)
     {
         if (!std::isalpha(cname[0]))
             cname = "C" + cname;
-        cname[0] = std::toupper(cname[0]);
+
+        if (force_upper_first)
+            cname[0] = std::toupper(cname[0]);
     }
     return cname;
 }
@@ -34,7 +36,7 @@ void JavaDumper::dumpPath(const SvgProcessor::group_t &what) const
     using namespace std;
 
     //java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix);
+    auto cname = fixClassName(namePrefix, true);
 
     outstr << "class " << ((cname.empty()) ? "Default" : cname) << " {" << endl;
     for (const auto& g : what)
@@ -174,7 +176,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
     using namespace std;
 
     //java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix);
+    auto cname = fixClassName(namePrefix, false);
 
     outstr << "#include \"sf_polygon.h\"" << endl << endl << endl;
     outstr << "namespace " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
@@ -239,7 +241,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
     using namespace std;
 
     //java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix);
+    auto cname = fixClassName(namePrefix, false);
 
     outstr << "#include <map>" << endl;
     outstr << "#include <string>" << endl;
@@ -291,7 +293,7 @@ SFMLMapDumper::SFMLMapDumper(std::ostream &out, const SvgProcessor &pr, const st
 void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
     using namespace std;
-    auto cname = fixClassName(namePrefix);
+    auto cname = fixClassName(namePrefix, false);
     if (use_local)
         outstr << "local ";
     outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;

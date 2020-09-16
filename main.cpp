@@ -79,6 +79,7 @@ int main(const int ac, const char** av)
     ("prettyjson,P", "output as pretty JSON")
     ("sfml,s", "output as C++ declaration (initializer list), sfml based(sf_polygon.h).")
     ("sfmlmap,S", "output as C++ declaration in form of std::map (initializer list), sfml based(sf_polygon.h).")
+    ("lua,l", "output as Lua")
     ;
 
     variables_map vm;
@@ -133,6 +134,7 @@ int main(const int ac, const char** av)
         {"prettyjson", [&] { return dumperFactory<JsonDumper>(optr, test, prefix, true);}},
         {"sfml", [&] { return dumperFactory<SFMLDumper>(optr, test, prefix);}},
         {"sfmlmap", [&] { return dumperFactory<SFMLMapDumper>(optr, test, prefix);}},
+        {"lua", [&] { return dumperFactory<LuaDumper>(optr, test, prefix);}},
     };
 
     test.postProcessTesselatedVerteces(shiftToZero);

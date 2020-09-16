@@ -258,9 +258,11 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
             dumpVertexes(g.second.vertexes);
             outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4) << center.y() << " }}," << endl << endl;
             outstr << "//end-of-group: " << g.first << std::endl;
-            outstr << "//Now each path separated if you need it: " << std::endl;
             if (USE_PATH_COMMENT)
+            {
+                outstr << "//Now each path separated if you need it: " << std::endl;
                 outstr << "/*" << std::endl;
+            }
         }
 
 
@@ -284,5 +286,64 @@ SFMLMapDumper::SFMLMapDumper(std::ostream &out, const SvgProcessor &pr, const st
 {
     dumpPath(pr.getTesselated());
 }
+//---------------------------------------------------------------------------------------------------------------------------------
 
+void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
+{
+    using namespace std;
+    auto cname = fixClassName(namePrefix);
+    outstr << "local " << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;
+    for (const auto& g : what)
+    {
+        bool morethan1 = g.second.pathes.size() > 1;
 
+        if (morethan1)
+        {
+            const auto name = "group_" + g.first;
+            auto center = g.second.bounds.get_center();
+            outstr << "--group: " << g.first << " (outer shape of the image)" << std::endl;
+            outstr << name << " = {" << std::endl << "vertexes = {";
+            dumpVertexes(g.second.vertexes);
+            outstr << "}," << std::endl << "origX = " << std::setprecision(4) << center.x() << "," << std::endl <<
+                   "origY = " << std::setprecision(4) << center.y() << " }, " << endl << endl;
+            outstr << "--end-of-group: " << g.first << std::endl;
+            if (USE_PATH_COMMENT)
+            {
+                outstr << "--Now each path separated if you need it: " << std::endl;
+                outstr << "--[[" << std::endl;
+            }
+        }
+
+        for (const auto& p : g.second.pathes)
+        {
+            auto &tess_result = p.second; //TessResult
+            auto center = tess_result.bounds.get_center();
+            outstr << p.first << " = { " << std::endl << "vertexes = {";;
+            dumpVertexes(tess_result.vertexes);
+            outstr << "}," << std::endl << "origX = " << std::setprecision(4) << center.x() << "," << std::endl <<
+                   "origY = " << std::setprecision(4) << center.y() << " }, " << endl << endl;
+        }
+
+        if (morethan1 && USE_PATH_COMMENT)
+            outstr << "--]]" << std::endl;
+    }
+    outstr << "}" << endl;
+}
+
+void LuaDumper::dumpVertexes(const Vertexes &what) const
+{
+    int cntr = 1;
+
+    for (const auto& v : what)
+    {
+        outstr << std::setprecision(4) << v.x() << ", " << std::setprecision(4) << v.y() << ", ";
+        if (++cntr % 6 == 0)
+            outstr << std::endl;
+    }
+}
+
+LuaDumper::LuaDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix) :
+    IDumper(out, pr, namePrefix)
+{
+    dumpPath(pr.getTesselated());
+}

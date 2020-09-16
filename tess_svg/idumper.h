@@ -61,6 +61,16 @@ public:
 
 };
 
+
+class LuaDumper: public IDumper
+{
+protected:
+    void dumpPath(const SvgProcessor::group_t &what) const override;
+    void dumpVertexes(const Vertexes& what) const;
+public:
+    explicit LuaDumper(std::ostream& out, const SvgProcessor& pr, const std::string& namePrefix = "");
+};
+
 template<class T, class ... Args>
 IDumperPtr dumperFactory(std::ostream& out, const SvgProcessor& pr, std::string namePrefix, Args...args)
 {

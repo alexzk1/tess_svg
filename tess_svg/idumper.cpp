@@ -292,7 +292,9 @@ void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
     using namespace std;
     auto cname = fixClassName(namePrefix);
-    outstr << "local " << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;
+    if (use_local)
+        outstr << "local ";
+    outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;
     for (const auto& g : what)
     {
         bool morethan1 = g.second.pathes.size() > 1;
@@ -342,8 +344,9 @@ void LuaDumper::dumpVertexes(const Vertexes &what) const
     }
 }
 
-LuaDumper::LuaDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix) :
-    IDumper(out, pr, namePrefix)
+LuaDumper::LuaDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix, const bool use_local) :
+    IDumper(out, pr, namePrefix),
+    use_local(use_local)
 {
     dumpPath(pr.getTesselated());
 }

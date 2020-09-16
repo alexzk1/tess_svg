@@ -1,8 +1,8 @@
 # Contributor: Oleksiy Zakharov <alexzkhr@gmail.com>
 
 pkgname=tess_svg
-pkgver=0.1.0
-pkgrel=10
+pkgver=0.2.0
+pkgrel=15
 pkgdesc="Translates SVG file into vertexes collections."
 
 provides=('tess_svg')

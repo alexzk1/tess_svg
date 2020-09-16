@@ -42,6 +42,7 @@ SOURCES += \
     engine/Vector2.cpp
 
 HEADERS += \
+    engine/my_math.h \
     tess_svg/Bounds.h \
     tess_svg/callbacks.h \
     tess_svg/GlDefs.h \
@@ -52,4 +53,5 @@ HEADERS += \
     tess_svg/tagdparser.h \
     tess_svg/Tesselate.h \
     engine/sincos_cached.h \
-    engine/Vector2.h
+    engine/Vector2.h \
+    util_helpers.h

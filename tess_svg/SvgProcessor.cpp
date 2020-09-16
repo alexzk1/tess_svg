@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+#include "util_helpers.h"
 #include "SvgProcessor.h"
 
 SvgProcessor::SvgProcessor(std::istream& src)
@@ -41,10 +42,13 @@ void SvgProcessor::postProcessTesselatedVerteces(const std::function<void (Bound
     }
 }
 
-void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops* loops, Loops* total_loops)
+void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops* loops, Loops* total_loops_param)
 {
     //todo: add more text nodes to tesselated
-    if ( std::string(node.name()) == "path")
+
+    const std::string node_name(toLower(node.name()));
+
+    if (node_name == "path")
     {
         SvgPath ptr(node, parent);
         auto& a = ptr.getLoops();
@@ -54,20 +58,22 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
             *loops = a;
         }
 
-        if (total_loops != nullptr)
-            total_loops->insert(total_loops->end(), a.cbegin(), a.cend());
+        if (total_loops_param != nullptr)
+            total_loops_param->insert(total_loops_param->end(), a.cbegin(), a.cend());
     }
     else
     {
-        Loops curr_loops, total_loops;
-        bool groupped = (std::string(node.name()) == "g");
+        Loops total_loops;
+        const bool groupped = (node_name == "g");
         std::string id(node.attribute("id").as_string());
         if (groupped)
             tesselated.emplace_back(std::make_pair(id, BoundedGroup()));
 
         for (pugi::xml_node tool = node.first_child(); tool; tool = tool.next_sibling())
         {
-            std::string tool_id(tool.attribute("id").as_string());
+            const std::string tool_id(tool.attribute("id").as_string());
+            Loops curr_loops;
+
             parse(tool, node, &curr_loops, (groupped) ? &total_loops : nullptr);
 
             if (curr_loops.size() > 0)
@@ -98,6 +104,5 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
             }
 
         }
-
     }
 }

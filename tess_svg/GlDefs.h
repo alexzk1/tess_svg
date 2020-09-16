@@ -20,8 +20,8 @@ using used_vectors_type = GLdouble;
 using GlVertex = Vector2<used_vectors_type, GL_PREC>;
 
 
-using Vertexes = std::vector<GlVertex>;
-using Loops = std::vector<Vertexes>;
+using Vertexes  = std::vector<GlVertex>;
+using Loops     = std::vector<Vertexes>;
 using GlContour = std::vector<used_vectors_type>;
 using GlPolygon = std::vector<GlContour>;
 

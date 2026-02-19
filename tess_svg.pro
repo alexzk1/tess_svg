@@ -1,5 +1,5 @@
 TEMPLATE = app
-CONFIG += console c++14
+CONFIG += console c++17
 CONFIG -= app_bundle
 CONFIG -= qt
 
@@ -8,7 +8,7 @@ LIBS += -lGLU -lxcb -lboost_program_options -lboost_system -lboost_filesystem -l
 INCLUDEPATH += $$PWD
 
 
-QMAKE_CXXFLAGS += -std=c++14 -Wall -ffloat-store -frtti -fexceptions -Werror=return-type
+QMAKE_CXXFLAGS += -Wall -ffloat-store -frtti -fexceptions -Werror=return-type
 QMAKE_CXXFLAGS += -Wctor-dtor-privacy -Werror=delete-non-virtual-dtor -fstrict-aliasing
 QMAKE_CXXFLAGS += -Werror=strict-aliasing -Wstrict-aliasing=2
 CONFIG += c++14

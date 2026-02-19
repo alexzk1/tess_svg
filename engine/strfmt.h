@@ -27,7 +27,7 @@ inline std::string stringfmt (const std::string &fmt, Ts&&... vs)
     char b;
 
     //not counting the terminating null character.
-    size_t required = std::snprintf(&b, 0, fmt.c_str(), cast(std::forward<Ts>(vs))...);
+    size_t required = std::snprintf(&b, 0, fmt.c_str(), cast(vs)...);
     std::string result;
     result.resize(required, 0);
     std::snprintf(const_cast<char*>(result.data()), required + 1, fmt.c_str(), cast(std::forward<Ts>(vs))...);

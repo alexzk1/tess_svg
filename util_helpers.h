@@ -1,8 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <string>
-#include <algorithm>
 
 inline std::string toLower(std::string src)
 {

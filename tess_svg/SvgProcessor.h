@@ -4,36 +4,39 @@
 
 #ifndef TESSVG_SVGPROCESSOR_H
 #define TESSVG_SVGPROCESSOR_H
-#include <string>
-#include <map>
-#include "GlDefs.h"
-#include "pugixml.hpp"
-#include "SvgPath.h"
-#include <functional>
-#include "Tesselate.h"
 #include "Bounds.h"
+#include "GlDefs.h"
+#include "SvgPath.h"
+#include "Tesselate.h"
+#include "pugixml.hpp"
+
+#include <functional>
 #include <iostream>
+#include <map>
+#include <string>
 
 class xmlerror : public std::runtime_error
 {
-public:
-    explicit xmlerror(const std::string &__arg) : runtime_error(__arg)
-    { }
+  public:
+    explicit xmlerror(const std::string &__arg) :
+        runtime_error(__arg)
+    {
+    }
 };
 
 class SvgProcessor
 {
-protected:
+  protected:
     struct WithBounds
     {
-        GlBounds   bounds;
-        Vertexes   vertexes;
+        GlBounds bounds;
+        Vertexes vertexes;
 
         void makeBounds()
         {
             bounds.reset();
 
-            //need to clean vertexes, model cannot have 2 same points 1 by 1
+            // need to clean vertexes, model cannot have 2 same points 1 by 1
 
             if (vertexes.size() > 2)
             {
@@ -57,19 +60,20 @@ protected:
         {
             bounds.reset();
         }
-    protected:
+
+      protected:
         virtual void updateBounds()
         {
-            for (auto& v : vertexes)
+            for (auto &v : vertexes)
                 bounds.add_point(v.x(), v.y());
         }
     };
 
-public:
+  public:
     struct TessResult : public WithBounds
     {
         std::map<std::string, std::string> attributes;
-        void setAttributes(const pugi::xml_node& node)
+        void setAttributes(const pugi::xml_node &node)
         {
             attributes.clear();
 
@@ -77,7 +81,7 @@ public:
                 attributes[std::string(attr->name())] = std::string(attr->as_string());
         }
 
-    protected:
+      protected:
     };
 
     using pathes_t = std::vector<std::pair<std::string, TessResult>>;
@@ -90,30 +94,30 @@ public:
             pathes.clear();
         }
 
-    protected:
+      protected:
         void updateBounds() override
         {
             WithBounds::updateBounds();
-            for (auto& p : pathes)
+            for (auto &p : pathes)
                 p.second.makeBounds();
         }
     };
 
     using group_t = std::vector<std::pair<std::string, BoundedGroup>>;
 
-private:
+  private:
     Tesselate ts;
     pugi::xml_document doc;
     group_t tesselated;
-    void parse(const pugi::xml_node&node, const pugi::xml_node &parent, Loops *loops, Loops *total_loops_param);
-public:
+    void parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
+               Loops *total_loops_param);
 
+  public:
     SvgProcessor() = default;
-    explicit SvgProcessor(std::istream& src);
-    void parse_svg_file(std::istream& src);
-    const group_t& getTesselated() const;
+    explicit SvgProcessor(std::istream &src);
+    void parse_svg_file(std::istream &src);
+    const group_t &getTesselated() const;
     void postProcessTesselatedVerteces(const std::function<void(BoundedGroup &)> &func);
 };
 
-
-#endif //TESSVG_SVGPROCESSOR_H
+#endif // TESSVG_SVGPROCESSOR_H

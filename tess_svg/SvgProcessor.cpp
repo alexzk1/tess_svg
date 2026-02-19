@@ -2,12 +2,14 @@
 // Created by alex on 7/15/15.
 //
 
-#include <iostream>
-#include "util_helpers.h"
 #include "SvgProcessor.h"
 
-SvgProcessor::SvgProcessor(std::istream& src)
-    : doc()
+#include "util_helpers.h"
+
+#include <iostream>
+
+SvgProcessor::SvgProcessor(std::istream &src) :
+    doc()
 {
     parse_svg_file(src);
 }
@@ -33,25 +35,26 @@ const SvgProcessor::group_t &SvgProcessor::getTesselated() const
     return tesselated;
 }
 
-void SvgProcessor::postProcessTesselatedVerteces(const std::function<void (BoundedGroup &)> &func)
+void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(BoundedGroup &)> &func)
 {
-    for (auto& v : tesselated)
+    for (auto &v : tesselated)
     {
         func(v.second);
         v.second.makeBounds();
     }
 }
 
-void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops* loops, Loops* total_loops_param)
+void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
+                         Loops *total_loops_param)
 {
-    //todo: add more text nodes to tesselated
+    // todo: add more text nodes to tesselated
 
     const std::string node_name(toLower(node.name()));
 
     if (node_name == "path")
     {
         SvgPath ptr(node, parent);
-        auto& a = ptr.getLoops();
+        auto &a = ptr.getLoops();
         if (loops != nullptr)
         {
             loops->clear();
@@ -102,7 +105,6 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
                 tesselated.back().second.vertexes = ts.process(total_loops, true);
                 tesselated.back().second.makeBounds();
             }
-
         }
     }
 }

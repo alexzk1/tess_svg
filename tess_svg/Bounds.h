@@ -5,20 +5,19 @@
 #ifndef TESSVG_BOUNDS_H
 #define TESSVG_BOUNDS_H
 
-
 #include "GlDefs.h"
 
 template <class T, int precission = 15>
 class Bounds
 {
-private:
+  private:
     bool notset;
-public:
+
+  public:
     T xmin;
     T xmax;
     T ymin;
     T ymax;
-
 
     Bounds()
     {
@@ -38,7 +37,7 @@ public:
 
     T height() const
     {
-        return std::abs(ymax-ymin);
+        return std::abs(ymax - ymin);
     }
 
     T scaleFactor() const
@@ -64,7 +63,7 @@ public:
         notset = false;
     }
 
-    void add_bounds(const Bounds& other)
+    void add_bounds(const Bounds &other)
     {
         if (!other.notset)
         {
@@ -82,9 +81,9 @@ public:
         }
     }
 
-    Vector2<T,precission> get_center() const
+    Vector2<T, precission> get_center() const
     {
-        return Vector2<T,precission>((xmin+xmax)/2.,(ymin+ymax)/2.);
+        return Vector2<T, precission>((xmin + xmax) / 2., (ymin + ymax) / 2.);
     }
 
     void offset(T x, T y)
@@ -99,6 +98,6 @@ public:
     }
 };
 
-typedef Bounds<GLdouble,GL_PREC> GlBounds;
+typedef Bounds<GLdouble, GL_PREC> GlBounds;
 
-#endif //TESSVG_BOUNDS_H
+#endif // TESSVG_BOUNDS_H

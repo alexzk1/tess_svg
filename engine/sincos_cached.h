@@ -2,17 +2,18 @@
 // Created by alex on 6/27/15.
 //
 #pragma once
-#include <map>
+#include "Vector2.h"
+#include "my_math.h"
+
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include "Vector2.h"
-#include "my_math.h"
+#include <map>
 
 template <typename T, int precission, size_t size_limit = 1024>
 class sincos_cached
 {
-private:
+  private:
     constexpr static int64_t e = std::pow(10, precission);
     std::map<uint64_t, mymath::sincos_res<T>> cache;
 
@@ -42,18 +43,17 @@ private:
         return key;
     }
 
-public:
-
+  public:
     T sin(T angle)
     {
-        const T val = cache.at(ensureInCache(angle)).sin; //using at to get exception - extra check
+        const T val = cache.at(ensureInCache(angle)).sin; // using at to get exception - extra check
         dropCache();
         return val * ((angle < 0) ? -1 : 1);
     }
 
     T cos(T angle)
     {
-        const T val = cache.at(ensureInCache(angle)).cos; //using at to get exception - extra check
+        const T val = cache.at(ensureInCache(angle)).cos; // using at to get exception - extra check
         dropCache();
         return val;
     }
@@ -65,4 +65,3 @@ public:
         return r;
     }
 };
-

@@ -5,63 +5,133 @@
 #pragma once
 
 /* Includes - STL */
-#include <string>
 #include "my_math.h"
 #include "strfmt.h"
-/* Includes - SFML */
-#include <SFML/System/Vector2.hpp>
-#include "sincos_cached.h"
-#include <array>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/io.hpp>
 
-constexpr int FLOAT_PREC  = 6;
+#include <string>
+/* Includes - SFML */
+#include "sincos_cached.h"
+
+#include <boost/numeric/ublas/io.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+
+#ifndef NO_SFML
+    #include <SFML/System/Vector2.hpp>
+#endif
+#include <array>
+
+#ifdef NO_SFML
+template <typename T>
+struct VStorage
+{
+    T x{0};
+    T y{0};
+
+    VStorage() = default;
+    VStorage(T x, T y) :
+        x(x),
+        y(y)
+    {
+    }
+
+    VStorage operator-(const VStorage &right) const
+    {
+        return VStorage(x - right.x, y - right.y);
+    }
+
+    VStorage operator+(const VStorage &right) const
+    {
+        return VStorage(x + right.x, y + right.y);
+    }
+
+    VStorage &operator*=(T scale)
+    {
+        x *= scale;
+        y *= scale;
+        return *this;
+    }
+    VStorage operator/(T data) const
+    {
+        return VStorage(x / data, y / data);
+    }
+    VStorage &operator/=(T data)
+    {
+        x /= data;
+        y /= data;
+        return *this;
+    }
+    VStorage operator*(T data) const
+    {
+        return VStorage(x * data, y * data);
+    }
+};
+template <typename T, typename Scalar>
+VStorage<T> operator*(Scalar left, const VStorage<T> &right)
+{
+    return VStorage<T>(static_cast<T>(left * right.x), static_cast<T>(left * right.y));
+}
+
+template <typename T, typename Scalar>
+VStorage<T> operator*(const VStorage<T> &left, Scalar right)
+{
+    return VStorage<T>(static_cast<T>(left.x * right), static_cast<T>(left.y * right));
+}
+
+template <typename T>
+VStorage<T> operator+(const VStorage<T> &left, const VStorage<T> &right)
+{
+    return VStorage<T>(left.x + right.x, left.y + right.y);
+}
+#else
+using VStorage = sf::Vector2<T>;
+#endif
+
+constexpr int FLOAT_PREC = 6;
 constexpr int DOUBLE_PREC = 12;
 constexpr double PI = 3.14159265358979323846;
-
-
-
 
 /*
  * a c e
  * b d f
  * 0 0 1
-*/
+ */
 
 template <typename T, int precission>
 class Vector2
 {
-public:
+  public:
     using trans_matrix_t = boost::numeric::ublas::matrix<T>;
-protected:
+
+  protected:
     static constexpr T pi = (T)PI;
-    sf::Vector2<T> orig;
-public:
+
+    VStorage<T> orig;
+
+  public:
     static sincos_cached<T, precission> sincos;
 
     Vector2() = default;
-    Vector2(const std::string& X, const std::string& Y): orig((T)std::stod(X), (T)std::stod(Y))
-    {
-
-    }
-    Vector2(T X, T Y) : orig(X, Y)
+    Vector2(const std::string &X, const std::string &Y) :
+        orig((T)std::stod(X), (T)std::stod(Y))
     {
     }
-
-
-    Vector2(const sf::Vector2<T>& c) : orig(c)//no need in explicit here, I want easy mix of Vector2 and sf::Vector2
+    Vector2(T X, T Y) :
+        orig(X, Y)
     {
     }
-
     virtual ~Vector2() = default;
 
+    Vector2(const VStorage<T> &c) :
+        orig(c)
+    {
+    }
 
-    const sf::Vector2<T>& operator()() const
+    const auto &operator()() const
     {
         return get();
     }
 
-    const sf::Vector2<T>& get() const
+    const auto &get() const
     {
         return orig;
     }
@@ -76,13 +146,13 @@ public:
         return orig.y;
     }
 
-    Vector2<T, precission>& operator%=(T theta)
+    Vector2<T, precission> &operator%=(T theta)
     {
         /*
-        * Rotate and assign operator
-        * @float       Theta for rotating against
-        * ->VECTOR2    this
-        */
+         * Rotate and assign operator
+         * @float       Theta for rotating against
+         * ->VECTOR2    this
+         */
         T cs = sincos.cos(theta);
         T sn = sincos.sin(theta);
 
@@ -113,7 +183,7 @@ public:
         return boost::numeric::ublas::zero_matrix<T>(3, 3);
     }
 
-    void translate(const trans_matrix_t& matrix)
+    void translate(const trans_matrix_t &matrix)
     {
         using namespace boost::numeric::ublas;
         vector<T> v(3);
@@ -137,7 +207,7 @@ public:
         return orig / this->mag();
     }
 
-    T dot(const Vector2<T, precission>& otr) const
+    T dot(const Vector2<T, precission> &otr) const
     {
         return orig.x * otr.x() + orig.y * otr.y();
     }
@@ -157,7 +227,7 @@ public:
         return stringfmt("[%f, %f] \n", x(), y());
     }
 
-    bool operator == (const Vector2<T, precission>& c) const
+    bool operator==(const Vector2<T, precission> &c) const
     {
         bool ex = mymath::almost_equal<T>(x(), c.x());
         bool ey = mymath::almost_equal<T>(y(), c.y());
@@ -167,19 +237,21 @@ public:
 
 using Vector2f = Vector2<float, FLOAT_PREC>;
 
+#ifndef NO_SFML
+    #include <SFML/Graphics.hpp>
 
-#include <vector>
-#include <SFML/Graphics.hpp>
+    #include <vector>
 
-template<sf::PrimitiveType TPrimitive> struct VertexVector : public std::vector<sf::Vertex>, public sf::Drawable
+template <sf::PrimitiveType TPrimitive>
+struct VertexVector : public std::vector<sf::Vertex>, public sf::Drawable
 {
     using std::vector<sf::Vertex>::vector;
-    inline void draw(sf::RenderTarget& mRenderTarget, sf::RenderStates mRenderStates) const override
+    inline void draw(sf::RenderTarget &mRenderTarget, sf::RenderStates mRenderStates) const override
     {
-        mRenderTarget.draw(&this->operator [](0), this->size(), TPrimitive, mRenderStates);
+        mRenderTarget.draw(&this->operator[](0), this->size(), TPrimitive, mRenderStates);
     }
 };
-
+#endif
 
 template <class T, int precission>
 sincos_cached<T, precission> Vector2<T, precission>::sincos;
@@ -189,4 +261,3 @@ T deg2rad(T deg)
 {
     return deg * static_cast<T>(PI) / static_cast<T>(180);
 }
-

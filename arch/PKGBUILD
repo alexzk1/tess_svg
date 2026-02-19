@@ -18,18 +18,19 @@ source=(git+$url.git)
 md5sums=('SKIP')
 
 build() {
+  cd $srcdir/tess_svg
   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build build --verbose
 }
 
 check() {
-  cd build
+  cd $srcdir/tess_svg/build
   # Run all tests from CMake added as add_test()
   ctest --output-on-failure
 }
 
 package() {
-  cd $srcdir/build
+  cd $srcdir/tess_svg/build
   install -D -m755 tess_svg $pkgdir/usr/bin/tess_svg
   install -d $pkgdir/usr/share/tess_svg
   cp $srcdir/tess_svg/generated_support/*.* $pkgdir/usr/share/tess_svg

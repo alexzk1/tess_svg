@@ -4,7 +4,6 @@
 
 #include "SvgPath.h"
 
-#include "Tesselate.h"
 #include "tagdparser.h"
 #include "tess_svg/GlDefs.h"
 #include "util_helpers.h"
@@ -122,7 +121,7 @@ const SvgPath::transform_funcs SvgPath::transforms = {
                            }
 
                            // В SVG углы в градусах, а sin/cos в радианах
-                           const double angle = std::stod(*b++) * (M_PI / 180.0);
+                           const double angle = std::stod(*b++) * (M_PI / 180.0); // NOLINT
 
                            GlVertex::trans_matrix_t temp = GlVertex::getIdentity();
                            const auto sc = sincos(angle);
@@ -189,7 +188,7 @@ bool SvgPath::func_holder::exec(const std::string &src, GlVertex::trans_matrix_t
         static const std::regex rgx(R"([\s,\(\)]+)");
         // Смещаемся к началу чисел после маски
         start_of_args = pos + mask.length();
-        std::sregex_token_iterator iter(src.begin() + start_of_args, src.end(), rgx, -1);
+        std::sregex_token_iterator iter(std::next(src.begin(), start_of_args), src.end(), rgx, -1);
 
         // Пропускаем возможный пустой токен в начале (если сразу за маской разделитель)
         if (iter != std::sregex_token_iterator() && iter->str().empty())

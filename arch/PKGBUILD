@@ -11,7 +11,7 @@ provides=('tess_svg')
 arch=('i686' 'x86_64' 'arm')
 url="https://github.com/alexzk1/tess_svg"
 
-license=('GPL')
+license=('MIT')
 depends=(boost-libs glu)
 makedepends=(cmake boost)
 source=(git+$url.git)
@@ -34,4 +34,6 @@ package() {
   install -D -m755 tess_svg $pkgdir/usr/bin/tess_svg
   install -d $pkgdir/usr/share/tess_svg
   cp $srcdir/tess_svg/generated_support/*.* $pkgdir/usr/share/tess_svg
+
+  install -D -m644 $srcdir/tess_svg/LICENSE $pkgdir/usr/share/licenses/tess_svg/LICENSE
 }

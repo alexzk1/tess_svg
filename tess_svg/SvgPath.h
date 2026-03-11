@@ -8,14 +8,14 @@
 #include "GlDefs.h"
 #include "pugixml.hpp"
 
+#include <functional>
 #include <regex>
+#include <string>
+#include <vector>
 
 class SvgPath
 {
-  private:
-    Loops loops;
-    const pugi::xml_node parentNode;
-
+  protected:
     class func_holder
     {
 
@@ -43,6 +43,12 @@ class SvgPath
     SvgPath(const pugi::xml_node &node, const pugi::xml_node &parentNode);
     void parse_node(const pugi::xml_node &node);
     const Loops &getLoops() const;
+
+  private:
+    void apply_transform_attr(const std::string &attr_value, GlVertex::trans_matrix_t &vtr);
+
+    Loops loops;
+    const pugi::xml_node parentNode;
 };
 
 #endif // TESSVG_SVGPATH_H

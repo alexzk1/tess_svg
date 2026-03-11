@@ -14,6 +14,7 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Those are set from int main()
@@ -65,9 +66,13 @@ bool checkIfRelative(const std::string &val)
 Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &translate)
 {
     static const std::regex add_space("([a-zA-Z])([0-9|\\.|\\-])");
-    const std::string srccopy = std::regex_replace(src, add_space, "$1 $2");
+    std::string srccopy = std::regex_replace(src, add_space, "$1 $2");
 
-    // std::cout<<"Spaced:\n"<<srccopy<<std::endl;
+    // Add space before - sign.
+    static const std::regex add_space_neg("([0-9|\\.])(\\-)");
+    srccopy = std::regex_replace(srccopy, add_space_neg, "$1 $2");
+
+    // std::cerr<<"Spaced:\n"<<srccopy<<std::endl;
 
     static const std::regex rgx("\\s+|\\,+");
     std::sregex_token_iterator iter(srccopy.cbegin(), srccopy.cend(), rgx, -1);
@@ -76,8 +81,11 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     std::vector<std::string> strs;
     for (; iter != end; ++iter)
     {
-        // std::cout<<*iter << '\n';
-        strs.push_back(*iter);
+        std::string s = *iter;
+        if (!s.empty())
+        {
+            strs.push_back(std::move(s));
+        }
     }
 
     Loops result;
@@ -90,36 +98,42 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     Vertexes current_path;
     std::string curr;
 
-    bool path_started = true;
-
     for (std::size_t i = 0, n = strs.size(); i < n; ++i)
     {
-
-        if (checkIfDouble(strs.at(i)))
+        const bool isNewCommand = !checkIfDouble(strs.at(i));
+        if (isNewCommand)
         {
-            --i;
+            curr = strs.at(i);
+            if (curr != "C" && curr != "c" && curr != "S" && curr != "s")
+            {
+                lastMirrorCubic.reset();
+            }
+            if (curr != "Q" && curr != "q" && curr != "T" && curr != "t")
+            {
+                lastMirrorQuadratic.reset();
+            }
         }
         else
         {
-            curr = strs.at(i);
+            --i;
         }
 
         const bool is_rel = checkIfRelative(curr);
-        GlVertex delta = (is_rel) ? lastVert : GlVertex(0, 0);
+        const GlVertex delta = (is_rel) ? lastVert : GlVertex(0, 0);
 
         if (curr == "z" || curr == "Z")
         {
-            if (current_path.size() < 1)
+            if (current_path.empty())
             {
-                throw std::runtime_error("Closing Z detected, but have less than 2 points yet.");
+                continue;
             }
 
+            current_path.push_back(lastInitial);
             result.push_back(current_path);
             current_path.clear();
             // If a "closepath" is followed immediately by any other command, then the next subpath
             // starts at the same initial point as the current subpath
             lastVert = lastInitial;
-            path_started = true;
             continue;
         }
         else
@@ -154,20 +168,25 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
             if (curr == "C" || curr == "c")
             {
-                auto x1y1 = delta.get() + getXY(strs, i).get();
-                auto x2y2 = delta.get() + getXY(strs, i).get();
-                lastMirrorCubic = GlVertex(x1y1);
+                do
+                {
+                    const auto x1y1 = delta.get() + getXY(strs, i).get();
+                    const auto x2y2 = delta.get() + getXY(strs, i).get();
+                    const auto xy = delta.get() + getXY(strs, i).get();
 
-                auto xy = delta.get() + getXY(strs, i).get();
-                cubicBeizer(lastVert, x1y1, x2y2, xy, current_path);
-                lastVert = xy;
+                    lastMirrorCubic = GlVertex(x2y2);
+
+                    cubicBeizer(lastVert, x1y1, x2y2, xy, current_path);
+                    lastVert = xy;
+                }
+                while (i + 1 < n && checkIfDouble(strs.at(i + 1)));
                 continue;
             }
 
             if (curr == "S" || curr == "s")
             {
-                auto x2y2 = delta.get() + getXY(strs, i).get();
-                auto xy = delta.get() + getXY(strs, i).get();
+                const auto x2y2 = delta.get() + getXY(strs, i).get();
+                const auto xy = delta.get() + getXY(strs, i).get();
                 auto x1y1 = delta.get() + lastVert.get();
 
                 if (lastMirrorCubic)
@@ -175,7 +194,7 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
                     x1y1 = delta.get() + lastMirrorCubic->mirror(lastVert).get();
                 }
 
-                lastMirrorCubic = GlVertex(x1y1);
+                lastMirrorCubic = GlVertex(x2y2);
                 cubicBeizer(lastVert, x1y1, x2y2, xy, current_path);
 
                 lastVert = xy;
@@ -248,19 +267,48 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
             if (curr == "M" || curr == "L" || curr == "m" || curr == "l")
             {
-                if (path_started)
+                // Если это m/M и путь уже начат — сохраняем старый и начинаем новый
+                if ((curr == "M" || curr == "m") && !current_path.empty())
                 {
-                    delta = GlVertex(0, 0);
+                    result.push_back(current_path);
+                    current_path.clear();
                 }
 
-                lastVert = GlVertex(delta.get() + getXY(strs, i).get());
+                // Обрабатываем ПЕРВУЮ пару координат
+                auto xy = getXY(strs, i);
+                if (is_rel)
+                {
+                    lastVert = GlVertex(lastVert.get() + xy.get());
+                }
+                else
+                {
+                    lastVert = xy;
+                }
+
                 if (curr == "M" || curr == "m")
                 {
-                    current_path.clear();
                     lastInitial = lastVert;
+                    curr = (is_rel) ? "l" : "L"; // Последующие пары в пачке — линии
                 }
-                curr = (path_started || checkIfRelative(curr)) ? "l" : "L";
-                path_started = false;
+
+                current_path.push_back(lastVert);
+
+                // Обрабатываем хвост (пачку координат)
+                while (i + 2 < n && checkIfDouble(strs.at(i + 1)))
+                {
+                    auto next_xy = getXY(strs, i);
+                    if (is_rel)
+                    {
+                        // ВАЖНО: прибавляем к ТЕКУЩЕМУ lastVert, а не к начальной дельте
+                        lastVert = GlVertex(lastVert.get() + next_xy.get());
+                    }
+                    else
+                    {
+                        lastVert = next_xy;
+                    }
+                    current_path.push_back(lastVert);
+                }
+                continue;
             }
             else
             {
@@ -278,6 +326,7 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
                         tmp = GlVertex((is_rel) ? 0 : lastVert.x(), tmp.y());
                     }
                     lastVert = GlVertex(delta.get() + tmp.get());
+                    current_path.push_back(lastVert);
                 }
                 else
                 {
@@ -286,10 +335,6 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
                 }
             }
         }
-
-        current_path.push_back(lastVert);
-        lastMirrorQuadratic.reset();
-        lastMirrorCubic.reset();
     }
 
     // bad formed path ? dont have Z at the end
@@ -333,7 +378,7 @@ GlVertex TagDParser::getY(std::vector<std::string> &src, size_t &index)
 void TagDParser::quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,
                                  Vertexes &path)
 {
-    for (std::size_t step = 0; step <= BEIZER_PARTS; ++step)
+    for (std::size_t step = 1; step <= BEIZER_PARTS; ++step)
     {
         const auto t = static_cast<GLdouble>(step) / static_cast<GLdouble>(BEIZER_PARTS);
         const auto t1 = 1 - t;
@@ -345,7 +390,7 @@ void TagDParser::quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, con
 void TagDParser::cubicBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &x2y2,
                              const GlVertex &xy, Vertexes &path)
 {
-    for (std::size_t step = 0; step <= BEIZER_PARTS; ++step)
+    for (std::size_t step = 1; step <= BEIZER_PARTS; ++step)
     {
         const auto t = static_cast<GLdouble>(step) / static_cast<GLdouble>(BEIZER_PARTS);
         const auto t1 = 1 - t;

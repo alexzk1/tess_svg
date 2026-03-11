@@ -1,16 +1,25 @@
+#include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgProcessor.h"
 #include "tess_svg/idumper.h"
 
-#include <boost/filesystem.hpp>
-#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>      //NOLINT
+#include <boost/program_options.hpp> //NOLINT
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/value_semantic.hpp>
 
 #include <sys/stat.h>
 
+#include <cstddef>
 #include <fstream>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <stdexcept>
+#include <string>
 
 const auto shiftToZero = [](SvgProcessor::BoundedGroup &path) {
-    GlVertex flip(0, path.bounds.height());
-    GlVertex shift(path.bounds.xmin, path.bounds.ymin);
+    const GlVertex flip(0, path.bounds.height());
+    const GlVertex shift(path.bounds.xmin, path.bounds.ymin);
 
     for (auto &v : path.vertexes)
     {
@@ -32,19 +41,23 @@ const auto shiftToZero = [](SvgProcessor::BoundedGroup &path) {
 
 const auto scale = [](SvgProcessor::BoundedGroup &path) {
     for (auto &v : path.vertexes)
+    {
         v = GlVertex(v.get() / path.bounds.scaleFactor());
+    }
 
     for (auto &p : path.pathes)
     {
         auto s = p.second.bounds.scaleFactor();
         for (auto &v : p.second.vertexes)
+        {
             v = GlVertex(v.get() / s);
+        }
     }
 };
 
 bool fexists(const std::string &name)
 {
-    struct stat buffer;
+    struct stat buffer{};
     return (stat(name.c_str(), &buffer) == 0);
 }
 
@@ -85,7 +98,9 @@ int main(const int ac, const char **av)
     try
     {
         if (ac < 2)
+        {
             throw std::runtime_error("No options given.");
+        }
         store(parse_command_line(ac, av, generic), vm);
         notify(vm);
         BEIZER_PARTS = vm["bparts"].as<int>();
@@ -99,10 +114,10 @@ int main(const int ac, const char **av)
 
     if (vm.count("help") || error_opts)
     {
-        std::cout << generic << "\n\n";
-        std::cout << "Warning! Source svg (image) files must assume that initial zero rotation of "
+        std::cerr << generic << "\n\n";
+        std::cerr << "Warning! Source svg (image) files must assume that initial zero rotation of "
                      "Actor points to right --->>!!!!\n";
-        // std::cout << "If SVG file contains object \"SCREEN\" it will be used as reference for
+        // std::cerr << "If SVG file contains object \"SCREEN\" it will be used as reference for
         // sizes and removed from output.\n";
         return (error_opts) ? 1 : 0;
     }
@@ -110,7 +125,9 @@ int main(const int ac, const char **av)
     auto fn = (vm.count("input")) ? vm["input"].as<std::string>() : "";
     std::fstream inp;
     if (!fn.empty())
+    {
         inp.open(fn, std::fstream::in);
+    }
     std::istream &sptr = (fn.empty()) ? std::cin : inp;
 
     // wana use input file name as prefix
@@ -121,11 +138,13 @@ int main(const int ac, const char **av)
     fn = (vm.count("output")) ? vm["output"].as<std::string>() : "";
     std::fstream out;
     if (!fn.empty())
+    {
         out.open(fn, std::fstream::out);
+    }
     std::ostream &optr = (fn.empty()) ? std::cout : out;
 
     SvgProcessor test(sptr);
-    std::map<std::string, std::function<IDumperPtr()>> factories = {
+    const std::map<std::string, std::function<IDumperPtr()>> factories = {
       // should be same "options" as above in menu
       {"java",
        [&] {

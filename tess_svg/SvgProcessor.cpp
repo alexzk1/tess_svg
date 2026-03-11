@@ -4,9 +4,13 @@
 
 #include "SvgProcessor.h"
 
+#include "tess_svg/GlDefs.h"
+#include "tess_svg/SvgPath.h"
 #include "util_helpers.h"
 
+#include <functional>
 #include <iostream>
+#include <utility>
 
 SvgProcessor::SvgProcessor(std::istream &src) :
     doc()
@@ -44,6 +48,7 @@ void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(Bounde
     }
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
                          Loops *total_loops_param)
 {
@@ -53,7 +58,7 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
 
     if (node_name == "path")
     {
-        SvgPath ptr(node, parent);
+        const SvgPath ptr(node, parent);
         auto &a = ptr.getLoops();
         if (loops != nullptr)
         {
@@ -62,15 +67,19 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
         }
 
         if (total_loops_param != nullptr)
+        {
             total_loops_param->insert(total_loops_param->end(), a.cbegin(), a.cend());
+        }
     }
     else
     {
         Loops total_loops;
         const bool groupped = (node_name == "g");
-        std::string id(node.attribute("id").as_string());
+        const std::string id(node.attribute("id").as_string());
         if (groupped)
+        {
             tesselated.emplace_back(std::make_pair(id, BoundedGroup()));
+        }
 
         for (pugi::xml_node tool = node.first_child(); tool; tool = tool.next_sibling())
         {
@@ -82,7 +91,9 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
             if (curr_loops.size() > 0)
             {
                 if (!groupped)
+                {
                     tesselated.emplace_back(std::make_pair(tool_id, BoundedGroup()));
+                }
 
                 TessResult tess;
                 tess.setAttributes(tool);

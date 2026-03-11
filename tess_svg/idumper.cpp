@@ -34,9 +34,14 @@ std::string fixClassName(std::string cname, bool force_upper_first)
             cname = "C" + cname;
         }
 
-        if (force_upper_first)
+        if (force_upper_first && !cname.empty())
         {
-            cname[0] = std::toupper(cname[0]);
+            const auto first = static_cast<unsigned char>(cname[0]);
+            // UTF-8 check.
+            if (first < 128)
+            {
+                cname[0] = static_cast<char>(std::toupper(first));
+            }
         }
     }
     return cname;
@@ -217,7 +222,7 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
     outstr << "namespace " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
     for (const auto &g : what)
     {
-        bool morethan1 = g.second.pathes.size() > 1;
+        const bool morethan1 = g.second.pathes.size() > 1;
 
         if (morethan1)
         {
@@ -233,7 +238,9 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
             outstr << "//end-of-group: " << g.first << std::endl;
             outstr << "//Now each path separated if you need it: " << std::endl;
             if (USE_PATH_COMMENT)
+            {
                 outstr << "/*" << std::endl;
+            }
         }
         for (const auto &p : g.second.pathes)
         {
@@ -247,7 +254,9 @@ void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
                    << endl;
         }
         if (morethan1 && USE_PATH_COMMENT)
+        {
             outstr << "*/" << std::endl;
+        }
     }
     outstr << "};" << endl;
 }
@@ -260,7 +269,9 @@ void SFMLDumper::dumpVertexes(const Vertexes &what) const
     {
         outstr << std::setprecision(4) << v.x() << ", " << std::setprecision(4) << v.y() << ", ";
         if (++cntr % 6 == 0)
+        {
             outstr << std::endl;
+        }
     }
 }
 
@@ -291,7 +302,7 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
            << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
     for (const auto &g : what)
     {
-        bool morethan1 = g.second.pathes.size() > 1;
+        const bool morethan1 = g.second.pathes.size() > 1;
 
         if (morethan1)
         {
@@ -323,7 +334,9 @@ void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
         }
 
         if (morethan1 && USE_PATH_COMMENT)
+        {
             outstr << "*/" << std::endl;
+        }
     }
     outstr << "};" << endl;
 }
@@ -341,11 +354,13 @@ void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
     using namespace std;
     auto cname = fixClassName(namePrefix, false);
     if (use_local)
+    {
         outstr << "local ";
+    }
     outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;
     for (const auto &g : what)
     {
-        bool morethan1 = g.second.pathes.size() > 1;
+        const bool morethan1 = g.second.pathes.size() > 1;
 
         if (morethan1)
         {
@@ -380,7 +395,9 @@ void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
         }
 
         if (morethan1 && USE_PATH_COMMENT)
+        {
             outstr << "--]]" << std::endl;
+        }
     }
     outstr << "}" << endl;
 }
@@ -393,7 +410,9 @@ void LuaDumper::dumpVertexes(const Vertexes &what) const
     {
         outstr << std::setprecision(4) << v.x() << ", " << std::setprecision(4) << v.y() << ", ";
         if (++cntr % 6 == 0)
+        {
             outstr << std::endl;
+        }
     }
 }
 

@@ -42,12 +42,12 @@ const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
 
     // must store shared_ptr on local variables, to ensure pointer will be valid till function ends
     auto l_vertex = to_glu_callback<GLU_TESS_VERTEX>([&](GLdouble *vertex) {
-        // std::cout<<"l_vertex: "<<*vertex<<" "<<*(vertex+1)<<std::endl;
+        // std::cerr<<"l_vertex: "<<*vertex<<" "<<*(vertex+1)<<std::endl;
         curr_shape.emplace_back(*vertex, *(vertex + 1));
     });
 
     auto l_begin = to_glu_callback<GLU_TESS_BEGIN>([&](GLenum w) {
-        // std::cout<<"l_begin: "<<w<<std::endl;
+        // std::cerr<<"l_begin: "<<w<<std::endl;
         tess_style = w;
         curr_shape.clear();
     });

@@ -2,6 +2,7 @@
 #include "tess_svg/Tesselate.h"
 
 #include <cstddef>
+#include <cstdlib>
 
 #include <gtest/gtest.h>
 

@@ -99,6 +99,8 @@ enable_testing()
 
 # Integration tests.
 set(TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_test.sh")
+set(TEST_SCRIPT_C "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_test_compact.sh")
+
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/test.svg")
 set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/expected.json")
 
@@ -108,10 +110,10 @@ add_test(NAME IntegrationTest_HoleSquare
 
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_path.svg")
 set(EXPECTED_JSON
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppeling_expected.json")
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_expected.json")
 
 add_test(NAME IntegrationTest_Zeppelin
-         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+         COMMAND bash ${TEST_SCRIPT_C} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
 # GTests.

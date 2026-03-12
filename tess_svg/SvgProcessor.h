@@ -4,15 +4,17 @@
 
 #ifndef TESSVG_SVGPROCESSOR_H
 #define TESSVG_SVGPROCESSOR_H
+
 #include "Bounds.h"
 #include "GlDefs.h"
 #include "SvgPath.h"
 #include "Tesselate.h"
 #include "pugixml.hpp"
 
+#include <algorithm>
 #include <functional>
-#include <iostream>
 #include <map>
+#include <stdexcept>
 #include <string>
 
 class xmlerror : public std::runtime_error
@@ -36,23 +38,18 @@ class SvgProcessor
         {
             bounds.reset();
 
-            // need to clean vertexes, model cannot have 2 same points 1 by 1
-
+            // Need to clean vertexes, model cannot have 2 same points 1 by 1.
             if (vertexes.size() > 2)
             {
-                for (auto it = vertexes.begin(); it != vertexes.end() - 1;)
-                {
-                    if (*it == *(it + 1))
-                    {
-                        std::cerr << "Equals: " << it->x() << "; " << it->y();
-                        it = vertexes.erase(it);
-                        std::cerr << " to " << it->x() << "; " << it->y() << std::endl;
-                    }
-                    else
-                        ++it;
-                }
+                const auto it =
+                  std::unique(vertexes.begin(), vertexes.end(), [](const auto &a, const auto &b) {
+                      return a == b;
+                  });
+                vertexes.erase(it, vertexes.end());
                 if (vertexes.size() < 3)
+                {
                     throw std::runtime_error("Lost too many points doing cleanse of the sames.");
+                }
             }
             updateBounds();
         }
@@ -65,7 +62,9 @@ class SvgProcessor
         virtual void updateBounds()
         {
             for (auto &v : vertexes)
+            {
                 bounds.add_point(v.x(), v.y());
+            }
         }
     };
 
@@ -78,7 +77,9 @@ class SvgProcessor
             attributes.clear();
 
             for (auto attr = node.attributes_begin(); attr != node.attributes_end(); attr++)
+            {
                 attributes[std::string(attr->name())] = std::string(attr->as_string());
+            }
         }
 
       protected:
@@ -99,7 +100,9 @@ class SvgProcessor
         {
             WithBounds::updateBounds();
             for (auto &p : pathes)
+            {
                 p.second.makeBounds();
+            }
         }
     };
 

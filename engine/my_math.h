@@ -216,72 +216,52 @@ class floats_comparer
     }
 };
 
-// calculatuion of sin & cos in 1 call using GNU extension if possible
-template <class T>
+/// @brief Result structure for simultaneous sine and cosine calculation.
+template <class taFloatingType>
 struct sincos_res
 {
-    static_assert(std::is_floating_point<T>::value, "T must be floating point one.");
-    T sin;
-    T cos;
+    static_assert(std::is_floating_point_v<taFloatingType>,
+                  "taFloatingType must be a floating point type.");
+    taFloatingType sin;
+    taFloatingType cos;
 };
-#ifdef _GNU_SOURCE
-namespace NS_GNUscPicker {
-// that what happens when C does not have overloads....
-template <class T>
-auto sincos_ld(T x, std::false_type)
-{
-    static_assert(NSfloats_Helper::is_longdouble<T>::value, "Woops!");
-    sincos_res<T> res;
-    ::sincosl(x, &res.sin, &res.cos);
-    return res;
-}
 
-template <class T>
-auto sincos_ld(T x, std::true_type)
+/// @brief Computes sine and cosine simultaneously.
+/// Uses platform-specific optimizations (GNU sincosf) where available.
+/// @param angle_rad Angle in radians.
+template <class taFloatingType>
+inline sincos_res<taFloatingType> sincos(taFloatingType angleRadians)
 {
-    static_assert(NSfloats_Helper::is_double<T>::value, "Woops!");
-    sincos_res<T> res;
-    ::sincos(x, &res.sin, &res.cos);
-    return res;
-}
+    static_assert(std::is_floating_point_v<taFloatingType>,
+                  "taFloatingType must be a floating point type.");
+    sincos_res<taFloatingType> res; // NOLINT
 
-template <class T>
-auto sincos_fd(T x, std::false_type)
-{
-    // pick double or long double
-    static_assert(!NSfloats_Helper::is_float<T>::value, "Woops!");
-    return NS_GNUscPicker::sincos_ld<T>(
-      x, std::integral_constant<bool, NSfloats_Helper::is_double<T>::value>{});
-}
-
-template <class T>
-auto sincos_fd(T x, std::true_type)
-{
-    static_assert(NSfloats_Helper::is_float<T>::value, "Woops!");
-    // pick float
-    sincos_res<T> res;
-    ::sincosf(x, &res.sin, &res.cos);
-    return res;
-}
-} // namespace NS_GNUscPicker
-template <class T>
-inline auto sincos(T x)
-{
-    static_assert(std::is_floating_point<T>::value, "T must be floating point one.");
-    return NS_GNUscPicker::sincos_fd<T>(
-      x, std::integral_constant<bool, NSfloats_Helper::is_float<T>::value>{});
-}
+    // Для Android NDK и Linux (GCC/Clang)
+#if defined(__GNUC__) || defined(__clang__)
+    if constexpr (std::is_same_v<taFloatingType, float>)
+    {
+        ::sincosf(angleRadians, &res.sin, &res.cos); // NOLINT
+    }
+    else if constexpr (std::is_same_v<taFloatingType, double>) // NOLINT
+    {
+        ::sincos(angleRadians, &res.sin, &res.cos); // NOLINT
+    }
+    else
+    {
+        ::sincosl(angleRadians, &res.sin, &res.cos); // NOLINT
+    }
 #else
-template <class T>
-inline auto sincos(T x)
-{
-    static_assert(std::is_floating_point<T>::value, "T must be floating point one.");
-    sincos_res<T> res;
-    res.sin = std::sin(x);
-    res.cos = std::cos(x);
+    // Fallback for MSVC or other compilers without GNU.
+    #ifndef SFW_SINCOS_WARNED
+        #define SFW_SINCOS_WARNED
+        #pragma message(                                                                           \
+          "Warning: math::sincos is using slow std::sin/std::cos fallback on this compiler.")
+    #endif
+    res.sin = std::sin(angleRadians);
+    res.cos = std::cos(angleRadians);
+#endif
     return res;
 }
-#endif
 
 } // namespace mymath
 

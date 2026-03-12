@@ -4,6 +4,7 @@
 
 #include "SvgPath.h"
 
+#include "engine/my_math.h"
 #include "tagdparser.h"
 #include "tess_svg/GlDefs.h"
 #include "util_helpers.h"
@@ -13,56 +14,6 @@
 #include <iterator>
 #include <regex>
 #include <type_traits>
-
-namespace {
-
-/// @brief Result structure for simultaneous sine and cosine calculation.
-template <class taFloatingType>
-struct sincos_res
-{
-    static_assert(std::is_floating_point_v<taFloatingType>,
-                  "taFloatingType must be a floating point type.");
-    taFloatingType sin;
-    taFloatingType cos;
-};
-
-/// @brief Computes sine and cosine simultaneously.
-/// Uses platform-specific optimizations (GNU sincosf) where available.
-/// @param angle_rad Angle in radians.
-template <class taFloatingType>
-inline sincos_res<taFloatingType> sincos(taFloatingType angleRadians)
-{
-    static_assert(std::is_floating_point_v<taFloatingType>,
-                  "taFloatingType must be a floating point type.");
-    sincos_res<taFloatingType> res; // NOLINT
-
-    // Для Android NDK и Linux (GCC/Clang)
-#if defined(__GNUC__) || defined(__clang__)
-    if constexpr (std::is_same_v<taFloatingType, float>)
-    {
-        ::sincosf(angleRadians, &res.sin, &res.cos); // NOLINT
-    }
-    else if constexpr (std::is_same_v<taFloatingType, double>) // NOLINT
-    {
-        ::sincos(angleRadians, &res.sin, &res.cos); // NOLINT
-    }
-    else
-    {
-        ::sincosl(angleRadians, &res.sin, &res.cos); // NOLINT
-    }
-#else
-    // Fallback for MSVC or other compilers without GNU.
-    #ifndef SFW_SINCOS_WARNED
-        #define SFW_SINCOS_WARNED
-        #pragma message(                                                                           \
-          "Warning: math::sincos is using slow std::sin/std::cos fallback on this compiler.")
-    #endif
-    res.sin = std::sin(angleRadians);
-    res.cos = std::cos(angleRadians);
-#endif
-    return res;
-}
-} // namespace
 
 const SvgPath::transform_funcs SvgPath::transforms = {
   SvgPath::func_holder("translate(",
@@ -124,7 +75,7 @@ const SvgPath::transform_funcs SvgPath::transforms = {
                            const double angle = std::stod(*b++) * (M_PI / 180.0); // NOLINT
 
                            GlVertex::trans_matrix_t temp = GlVertex::getIdentity();
-                           const auto sc = sincos(angle);
+                           const auto sc = mymath::sincos(angle);
                            temp(0, 0) = sc.cos;
                            temp(0, 1) = -sc.sin;
                            temp(1, 0) = sc.sin;

@@ -1,10 +1,12 @@
 #include "tagdparser.h"
 
 #include "engine/Vector2.h"
-#include "engine/sincos_cached.h"
+#include "engine/my_math.h"
 #include "tess_svg/GlDefs.h"
 
 #include <GL/gl.h>
+
+#include <math.h>
 
 #include <array>
 #include <cmath>
@@ -23,15 +25,6 @@ std::size_t BEIZER_PARTS = 10;
 std::size_t ELLIPSE_POINTS = 1024;
 
 namespace {
-
-// Rotate a point by an angle around the origin point.
-template <class T>
-std::array<T, 2> rotate(T x, T y, T angle)
-{
-    static sincos_cached<T, 10> sincos;
-    return {{x * sincos.cos(angle) - y * sincos.sin(angle),
-             y * sincos.cos(angle) + x * sincos.sin(angle)}};
-}
 
 // Return angle between x axis and point knowing given center.
 template <class T>
@@ -61,6 +54,94 @@ bool checkIfRelative(const std::string &val)
     }
     throw std::runtime_error("checkIfRelative called for wrong literals: " + val);
 }
+
+// http://xahlee.info/js/svg_path_ellipse_arc.html
+// https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
+// https://github.com/igagis/svgren/blob/master/src/svgren/Renderer.cpp
+void ellipseArc(const GlVertex &start, double rx, double ry, double xAxisRotation,
+                bool largeArcFlag, bool sweepFlag, const GlVertex &end, Vertexes &path)
+{
+    // 1. Учет нулевых радиусов (это просто линия)
+    if (rx == 0.0 || ry == 0.0)
+    {
+        path.push_back(end);
+        return;
+    }
+
+    rx = std::abs(rx);
+    ry = std::abs(ry);
+    const double phi = xAxisRotation * M_PI / 180.0;
+    const auto sinCosPhi = mymath::sincos(phi);
+
+    // 2. Вычисляем промежуточные значения (магия SVG Spec)
+    const double dx2 = (start.x() - end.x()) / 2.0;
+    const double dy2 = (start.y() - end.y()) / 2.0;
+
+    const double x1p = sinCosPhi.cos * dx2 + sinCosPhi.sin * dy2;
+    const double y1p = -sinCosPhi.sin * dx2 + sinCosPhi.cos * dy2;
+
+    // Проверка, что радиусы достаточно велики
+    const double check = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+    if (check > 1.0)
+    {
+        rx *= std::sqrt(check);
+        ry *= std::sqrt(check);
+    }
+
+    // 3. Находим центр в штрих-координатах
+    const double sign = (largeArcFlag == sweepFlag) ? -1.0 : 1.0;
+    const double num = (rx * rx * ry * ry) - (rx * rx * y1p * y1p) - (ry * ry * x1p * x1p);
+    const double den = (rx * rx * y1p * y1p) + (ry * ry * x1p * x1p);
+    const double factor = sign * std::sqrt(std::max(0.0, num / den));
+
+    const double cxp = factor * (rx * y1p / ry);
+    const double cyp = factor * (-ry * x1p / rx);
+
+    // 4. Переводим центр в мировые координаты
+    const double cx = sinCosPhi.cos * cxp - sinCosPhi.sin * cyp + (start.x() + end.x()) / 2.0;
+    const double cy = sinCosPhi.sin * cxp + sinCosPhi.cos * cyp + (start.y() + end.y()) / 2.0;
+
+    // 5. Вычисляем углы
+    static const auto angleBetween = [](double ux, double uy, double vx, double vy) {
+        const double dot = ux * vx + uy * vy;
+        const double len = std::sqrt(ux * ux + uy * uy) * std::sqrt(vx * vx + vy * vy);
+        double ang = std::acos(std::clamp(dot / len, -1.0, 1.0));
+        if ((ux * vy - uy * vx) < 0)
+        {
+            ang = -ang;
+        }
+        return ang;
+    };
+    const double startAngle = angleBetween(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+
+    double deltaAngle =
+      angleBetween((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+    if (!sweepFlag && deltaAngle > 0)
+    {
+        deltaAngle -= 2 * M_PI;
+    }
+    if (sweepFlag && deltaAngle < 0)
+    {
+        deltaAngle += 2 * M_PI;
+    }
+
+    // 6. Тесселяция (создаем точки)
+    // Используем ELLIPSE_POINTS для точности
+    const auto segments =
+      std::max<int>(1, static_cast<int>(std::abs(deltaAngle) / (2 * M_PI) * ELLIPSE_POINTS));
+    for (int i = 1; i <= segments; ++i)
+    {
+        const double theta = startAngle + deltaAngle * static_cast<double>(i) / segments;
+        const auto sinCosTheta = mymath::sincos(theta);
+
+        const double xp = rx * sinCosTheta.cos;
+        const double yp = ry * sinCosTheta.sin;
+        const double x = sinCosPhi.cos * xp - sinCosPhi.sin * yp + cx;
+        const double y = sinCosPhi.sin * xp + sinCosPhi.cos * yp + cy;
+        path.emplace_back(x, y);
+    }
+}
+
 } // namespace
 
 Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &translate)
@@ -203,65 +284,15 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
             if (curr == "A" || curr == "a")
             {
-                // http://xahlee.info/js/svg_path_ellipse_arc.html
-                // https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
-                // https://github.com/igagis/svgren/blob/master/src/svgren/Renderer.cpp
+                const double rx = std::stod(strs[++i]);
+                const double ry = std::stod(strs[++i]);
+                const double rot = std::stod(strs[++i]);
+                const bool large = std::stod(strs[++i]) != 0;
+                const bool sweep = std::stod(strs[++i]) != 0;
+                const auto end = delta.get() + getXY(strs, i).get();
 
-                auto xy = delta.get() + getXY(strs, i).get(); // now it is absolute
-
-                // auto rxy = getXY(strs, i).get();
-                // auto xrot = getX(strs, i).x();
-                // bool laFlag = getX(strs, i).x();
-                // bool sweepFlag = getX(strs, i).x();
-                //                double radiiRatio = rxy.y / rxy.x;
-                //                if (radiiRatio <= 0)
-                //                    continue;
-                //                //cancel rotation of end point
-                //                double xe, ye;
-                //                {
-                //                    auto xxyy = xy.get() - lastVert.get();
-
-                //                    auto res = rotate(xxyy.x(), xxyy.y(), deg2rad(xrot));
-                //                    xe = res[0];
-                //                    ye = res[1];
-                //                }
-                //                ye /= radiiRatio;
-
-                //                //Find the angle between the end point and the x axis
-                //                auto angle = pointAngle(double(0), double(0), xe, ye);
-
-                //                //Put the end point onto the x axis
-                //                xe = std::sqrt(xe * xe + ye * ye);
-                //                ye = 0;
-
-                //                //Update the x radius if it is too small
-                //                auto rx = std::fmax(rxy.x, xe / 2.);
-
-                //                //Find one circle center
-                //                auto xc = xe / 2.;
-                //                auto yc = std::sqrt(rx * rx - xc * xc);
-
-                //                //Choose between the two circles according to flags
-                //                if (!(laFlag != sweepFlag))
-                //                    yc = -yc;
-
-                //                //Put the second point and the center back to their positions
-                //                {
-                //                    auto res = rotate(xe, double(0), angle);
-                //                    xe = res[0];
-                //                    ye = res[1];
-                //                }
-                //                {
-                //                    auto res = rotate(xc, yc, angle);
-                //                    xc = res[0];
-                //                    yc = res[1];
-                //                }
-
-                //                auto angle1 = pointAngle(xc, yc, double(0), double(0));
-                //                auto angle2 = pointAngle(xc, yc, xe, ye);
-
-                std::cerr << "Arc tag A/a is not implemented yet!" << std::endl;
-                lastVert = xy;
+                ellipseArc(lastVert, rx, ry, rot, large, sweep, end, current_path);
+                lastVert = end;
                 continue;
             }
 

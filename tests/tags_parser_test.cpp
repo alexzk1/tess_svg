@@ -5,6 +5,9 @@
 
 #include <gtest/gtest.h>
 
+extern std::size_t BEIZER_PARTS;
+extern std::size_t ELLIPSE_POINTS;
+
 namespace Test {
 
 namespace {
@@ -191,6 +194,64 @@ TEST(TagDParserTest, FractionalNumbersWithoutLeadingZero)
     ASSERT_EQ(loops[0].size(), 2);
     EXPECT_DOUBLE_EQ(loops[0][0].x(), 0.5);
     EXPECT_DOUBLE_EQ(loops[0][1].x(), -0.5);
+}
+
+// Тест на эллиптическую арку (команда A/a)
+TEST(TagDParserTest, EllipticArcCommand)
+{
+    // M 0 0 - начало
+    // A 10 20 0 0 1 10 10
+    // rx=10, ry=20, rot=0, large=0, sweep=1, end=(10,10)
+    const std::string path_data = "M 0 0 A 10 20 0 0 1 10 10";
+    const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    ASSERT_FALSE(loops.empty());
+    // Проверяем, что арка дошла до целевой точки
+    EXPECT_NEAR(loops[0].back().x(), 10.0, 0.001);
+    EXPECT_NEAR(loops[0].back().y(), 10.0, 0.001);
+
+    // Проверяем количество точек тесселяции (зависит от ELLIPSE_POINTS)
+    // Для четверти эллипса при 1024 точках на полный круг должно быть ~256 точек
+    EXPECT_GT(loops[0].size(), 100);
+}
+
+// Тест на вырожденную арку (нулевой радиус должен стать линией)
+TEST(TagDParserTest, DegenerateArcIsLine)
+{
+    const std::string path_data = "M 0 0 A 0 0 0 0 1 50 50";
+    const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    ASSERT_EQ(loops[0].size(), 2); // Только Start и End
+    EXPECT_DOUBLE_EQ(loops[0].back().x(), 50.0);
+}
+
+// Тест на коррекцию радиусов (если rx/ry слишком малы, чтобы достать до точки)
+TEST(TagDParserTest, ArcRadiusCorrection)
+{
+    // Точки на расстоянии 100, а радиус всего 1.
+    // Алгоритм должен пропорционально увеличить rx/ry до 50+.
+    const std::string path_data = "M 0 0 a 1 1 0 0 1 100 0";
+    EXPECT_NO_THROW({
+        const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+        EXPECT_NEAR(loops[0].back().x(), 100.0, 0.001);
+    });
+}
+
+TEST(TagDParserTest, LowPrecisionArc)
+{
+    auto original_points = ELLIPSE_POINTS;
+
+    // Делаем эллипс очень грубым (всего 4 точки на круг)
+    ELLIPSE_POINTS = 4;
+
+    const std::string path_data = "M 0 0 A 10 10 0 0 1 20 0"; // полуокружность
+    auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    // Полуокружность (180 градусов) при 4 точках на 360 градусов
+    // должна дать примерно 2 сегмента (3 точки: старт, середина, конец)
+    EXPECT_LT(loops[0].size(), 5);
+
+    ELLIPSE_POINTS = original_points; // Возвращаем назад!
 }
 
 } // namespace Test

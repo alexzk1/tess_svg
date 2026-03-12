@@ -10,7 +10,6 @@
 
 #include <string>
 /* Includes - SFML */
-#include "sincos_cached.h"
 
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -18,6 +17,8 @@
 #ifndef NO_SFML
     #include <SFML/System/Vector2.hpp>
 #endif
+#include "engine/my_math.h"
+
 #include <array>
 
 #ifdef NO_SFML
@@ -108,8 +109,6 @@ class Vector2
     VStorage<T> orig;
 
   public:
-    static sincos_cached<T, precission> sincos;
-
     Vector2() = default;
     Vector2(const std::string &X, const std::string &Y) :
         orig((T)std::stod(X), (T)std::stod(Y))
@@ -153,15 +152,9 @@ class Vector2
          * @float       Theta for rotating against
          * ->VECTOR2    this
          */
-        T cs = sincos.cos(theta);
-        T sn = sincos.sin(theta);
-
-        T px = orig.x * cs - orig.y * sn;
-        T py = orig.x * sn + orig.y * cs;
-
-        orig.x = px;
-        orig.y = py;
-
+        const auto sinCos = mymath::sincos(theta);
+        orig.x = orig.x * sinCos.cos - orig.y * sinCos.sin;
+        orig.y = orig.x * sinCos.sin + orig.y * sinCos.cos;
         return *this;
     }
 
@@ -252,9 +245,6 @@ struct VertexVector : public std::vector<sf::Vertex>, public sf::Drawable
     }
 };
 #endif
-
-template <class T, int precission>
-sincos_cached<T, precission> Vector2<T, precission>::sincos;
 
 template <class T>
 T deg2rad(T deg)

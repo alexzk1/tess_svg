@@ -40,17 +40,18 @@ const auto shiftToZero = [](SvgProcessor::BoundedGroup &path) {
 };
 
 const auto scale = [](SvgProcessor::BoundedGroup &path) {
+    const auto commonScale = path.bounds.scaleFactor();
+
     for (auto &v : path.vertexes)
     {
-        v = GlVertex(v.get() / path.bounds.scaleFactor());
+        v = GlVertex(v.get() / commonScale);
     }
 
     for (auto &p : path.pathes)
     {
-        auto s = p.second.bounds.scaleFactor();
         for (auto &v : p.second.vertexes)
         {
-            v = GlVertex(v.get() / s);
+            v = GlVertex(v.get() / commonScale);
         }
     }
 };

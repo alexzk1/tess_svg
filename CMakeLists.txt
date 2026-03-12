@@ -106,6 +106,14 @@ add_test(NAME IntegrationTest_HoleSquare
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
+set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_path.svg")
+set(EXPECTED_JSON
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppeling_expected.json")
+
+add_test(NAME IntegrationTest_Zeppelin
+         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+                 ${INPUT_SVG} ${EXPECTED_JSON})
+
 # GTests.
 
 if(BUILD_TESTS)

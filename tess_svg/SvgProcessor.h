@@ -98,10 +98,22 @@ class SvgProcessor
       protected:
         void updateBounds() override
         {
-            WithBounds::updateBounds();
+            // 1. Сначала просим детей обновить их границы
             for (auto &p : pathes)
             {
                 p.second.makeBounds();
+            }
+
+            // 2. Сбрасываем старые границы группы
+            bounds.reset();
+
+            // 3. Добавляем в границы группы точки из её собственного vertexes (если они есть)
+            WithBounds::updateBounds();
+            // 4. ГЛАВНОЕ: Расширяем границы группы границами всех вложенных путей
+            for (auto &p : pathes)
+            {
+                bounds.add_point(p.second.bounds.xmin, p.second.bounds.ymin);
+                bounds.add_point(p.second.bounds.xmax, p.second.bounds.ymax);
             }
         }
     };

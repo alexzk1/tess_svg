@@ -110,12 +110,25 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
 
         if (groupped)
         {
-            tesselated.back().second.makeBounds();
-            if (total_loops.size() > 0)
+            // 1. Сначала заставляем всех детей посчитать свои границы
+            for (auto &p : tesselated.back().second.pathes)
             {
-                tesselated.back().second.vertexes = ts.process(total_loops, true);
-                tesselated.back().second.makeBounds();
+                p.second.makeBounds();
             }
+
+            // 2. Считаем общие границы группы на основе границ детей
+            auto &currentGroup = tesselated.back().second;
+            currentGroup.bounds.reset();
+
+            for (auto &p : currentGroup.pathes)
+            {
+                // Добавляем углы границ ребенка в границы группы
+                currentGroup.bounds.add_point(p.second.bounds.xmin, p.second.bounds.ymin);
+                currentGroup.bounds.add_point(p.second.bounds.xmax, p.second.bounds.ymax);
+            }
+
+            // !!! ВАЖНО: Мы НЕ вызываем ts.process(total_loops),
+            // чтобы не создавать "склейку" в currentGroup.vertexes
         }
     }
 }

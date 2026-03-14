@@ -4,8 +4,10 @@
 
 #include <boost/filesystem.hpp>      //NOLINT
 #include <boost/program_options.hpp> //NOLINT
+#include <boost/program_options/detail/parsers.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <sys/stat.h>
 
@@ -17,50 +19,13 @@
 #include <stdexcept>
 #include <string>
 
-const auto shiftToZero = [](SvgProcessor::BoundedGroup &path) {
-    const GlVertex flip(0, path.bounds.height());
-    const GlVertex shift(path.bounds.xmin, path.bounds.ymin);
-
-    for (auto &v : path.vertexes)
-    {
-        auto shifted = (v.get() - shift.get());
-        shifted.y *= -1;
-        v = GlVertex(shifted + flip.get());
-    }
-
-    for (auto &p : path.pathes)
-    {
-        for (auto &v : p.second.vertexes)
-        {
-            auto shifted = (v.get() - shift.get());
-            shifted.y *= -1;
-            v = GlVertex(shifted + flip.get());
-        }
-    }
-};
-
-const auto scale = [](SvgProcessor::BoundedGroup &path) {
-    const auto commonScale = path.bounds.scaleFactor();
-
-    for (auto &v : path.vertexes)
-    {
-        v = GlVertex(v.get() / commonScale);
-    }
-
-    for (auto &p : path.pathes)
-    {
-        for (auto &v : p.second.vertexes)
-        {
-            v = GlVertex(v.get() / commonScale);
-        }
-    }
-};
-
+namespace {
 bool fexists(const std::string &name)
 {
     struct stat buffer{};
     return (stat(name.c_str(), &buffer) == 0);
 }
+} // namespace
 
 extern std::size_t BEIZER_PARTS;
 extern std::size_t ELLIPSE_POINTS;
@@ -176,9 +141,6 @@ int main(const int ac, const char **av)
            return dumperFactory<LuaDumper>(optr, test, prefix, false);
        }},
     };
-
-    test.postProcessTesselatedVerteces(shiftToZero);
-    test.postProcessTesselatedVerteces(scale);
 
     bool ok = false;
     for (const auto &kv : factories)

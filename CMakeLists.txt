@@ -122,10 +122,10 @@ add_test(NAME IntegrationTest_F
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
-# IntegrationTest_Bezie
+# IntegrationTest_Bezier
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/bezier.svg")
 set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/bezier.json")
-add_test(NAME IntegrationTest_Bezie
+add_test(NAME IntegrationTest_Bezier
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 

@@ -8,6 +8,7 @@
 
 #include <math.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -21,7 +22,7 @@
 
 // Those are set from int main()
 // TODO: fix that...why do we have globals ? :D
-std::size_t BEIZER_PARTS = 10;
+float BEIZER_FLATNESS = 0.5f;
 std::size_t ELLIPSE_POINTS = 1024;
 
 namespace {
@@ -53,6 +54,70 @@ bool checkIfRelative(const std::string &val)
         return val[0] >= 'a' && val[0] <= 'z';
     }
     throw std::runtime_error("checkIfRelative called for wrong literals: " + val);
+}
+
+static constexpr int kMaximumRecursiveDepth = 12;
+
+void subdivideQuadratic(const GlVertex &p0, const GlVertex &p1, const GlVertex &p2, float flatness,
+                        Vertexes &path, int depth)
+{
+    // Находим середины отрезков (Алгоритм Кастельжо)
+    const GlVertex m01 = (p0.get() + p1.get()) * 0.5;
+    const GlVertex m12 = (p1.get() + p2.get()) * 0.5;
+    const GlVertex m012 = (m01.get() + m12.get()) * 0.5; // Точка на самой кривой (t=0.5)
+
+    // Считаем "кривизну": расстояние от контрольной точки p1 до хорды p0-p2
+    // Упрощенный быстрый тест:
+    const auto dx = p2.get().x - p0.get().x;
+    const auto dy = p2.get().y - p0.get().y;
+    const auto dev = std::abs((p1.get().x - p2.get().x) * dy - (p1.get().y - p2.get().y) * dx);
+
+    if (depth > kMaximumRecursiveDepth || dev * dev < flatness * (dx * dx + dy * dy))
+    {
+        path.emplace_back(p2); // Кривая достаточно плоская, добавляем конец
+        return;
+    }
+
+    // Рекурсивно делим на две части
+    subdivideQuadratic(p0, m01, m012, flatness, path, depth + 1);
+    subdivideQuadratic(m012, m12, p2, flatness, path, depth + 1);
+}
+
+void subdivideCubic(const GlVertex &p0, const GlVertex &p1, const GlVertex &p2, const GlVertex &p3,
+                    float flatness, Vertexes &path, int depth)
+{
+    // 2. Находим координаты контрольных точек относительно прямой p0-p3
+    // Используем упрощенную оценку отклонения (параметрический чебышевский шаг)
+    const auto p0v = p0.get();
+    const auto p1v = p1.get();
+    const auto p2v = p2.get();
+    const auto p3v = p3.get();
+
+    // Расстояние от p1 и p2 до прямой p0-p3
+    const auto dx = p3v.x - p0v.x;
+    const auto dy = p3v.y - p0v.y;
+
+    const auto d1 = std::abs((p1v.x - p3v.x) * dy - (p1v.y - p3v.y) * dx);
+    const auto d2 = std::abs((p2v.x - p3v.x) * dy - (p2v.y - p3v.y) * dx);
+
+    // Если обе точки лежат достаточно близко к прямой p0-p3
+    if (depth > kMaximumRecursiveDepth || (d1 + d2) * (d1 + d2) < flatness * (dx * dx + dy * dy))
+    {
+        path.emplace_back(p3);
+        return;
+    }
+
+    // 3. Алгоритм Кастельжо: делим кривую пополам (t=0.5)
+    const GlVertex m01 = (p0v + p1v) * 0.5;
+    const GlVertex m12 = (p1v + p2v) * 0.5;
+    const GlVertex m23 = (p2v + p3v) * 0.5;
+    const GlVertex m012 = (m01.get() + m12.get()) * 0.5;
+    const GlVertex m123 = (m12.get() + m23.get()) * 0.5;
+    const GlVertex m0123 = (m012.get() + m123.get()) * 0.5; // Точка разделения
+
+    // 4. Рекурсия для левой и правой половин
+    subdivideCubic(p0, m01, m012, m0123, flatness, path, depth + 1);
+    subdivideCubic(m0123, m123, m23, p3, flatness, path, depth + 1);
 }
 
 // http://xahlee.info/js/svg_path_ellipse_arc.html
@@ -200,7 +265,7 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
         }
 
         const bool is_rel = checkIfRelative(curr);
-        const GlVertex delta = (is_rel) ? lastVert : GlVertex(0, 0);
+        GlVertex delta = (is_rel) ? lastVert : GlVertex(0, 0);
 
         if (curr == "z" || curr == "Z")
         {
@@ -221,44 +286,80 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
         {
             if (curr == "Q" || curr == "q")
             {
+                // 1. Контрольная точка (x1y1)
                 auto x1y1 = delta.get() + getXY(strs, i).get();
+                // Сохраняем её для зеркалирования в команде T/t
                 lastMirrorQuadratic = GlVertex(x1y1);
 
+                // 2. Конечная точка (xy)
                 auto xy = delta.get() + getXY(strs, i).get();
-                quadraticBeizer(lastVert, x1y1, xy, current_path);
+
+                // 3. Запуск адаптивной рекурсии вместо старой функции
+                subdivideQuadratic(lastVert, x1y1, xy, BEIZER_FLATNESS, current_path, 0);
+
+                // 4. Обновляем состояние
                 lastVert = xy;
+                if (curr == "q")
+                {
+                    delta = lastVert; // Обновляем относительную базу
+                }
                 continue;
             }
 
             if (curr == "T" || curr == "t")
             {
+                // 1. Конечная точка (xy)
                 auto xy = delta.get() + getXY(strs, i).get();
-                auto x1y1 = delta.get() + lastVert.get();
+
+                // 2. Вычисляем контрольную точку (x1y1)
+                // По умолчанию она совпадает с текущей позицией
+                GlVertex x1y1 = lastVert;
 
                 if (lastMirrorQuadratic)
                 {
-                    x1y1 = delta.get() + lastMirrorQuadratic->mirror(lastVert).get();
+                    // Зеркалим ПРЕДЫДУЩУЮ контрольную точку относительно ТЕКУЩЕЙ lastVert
+                    // Убираем лишний delta.get(), если mirror() уже работает в мировых координатах
+                    x1y1 = lastMirrorQuadratic->mirror(lastVert);
                 }
 
-                lastMirrorQuadratic = GlVertex(x1y1);
+                // 3. ОБЯЗАТЕЛЬНО сохраняем эту вычисленную точку как "зеркало" для следующей
+                // команды T
+                lastMirrorQuadratic = x1y1;
 
-                quadraticBeizer(lastVert, x1y1, xy, current_path);
+                // 4. Запускаем адаптивную рекурсию
+                subdivideQuadratic(lastVert, x1y1, xy, BEIZER_FLATNESS, current_path, 0);
+
+                // 5. Обновляем состояние
                 lastVert = xy;
+                if (curr == "t")
+                {
+                    delta = lastVert;
+                }
+
                 continue;
             }
-
             if (curr == "C" || curr == "c")
             {
                 do
                 {
-                    const auto x1y1 = delta.get() + getXY(strs, i).get();
-                    const auto x2y2 = delta.get() + getXY(strs, i).get();
-                    const auto xy = delta.get() + getXY(strs, i).get();
+                    // Вычисляем точки в зависимости от регистра команды
+                    // delta — это lastVert, если команда 'c', и (0,0), если 'C'
+                    const GlVertex x1y1 = delta.get() + getXY(strs, i).get();
+                    const GlVertex x2y2 = delta.get() + getXY(strs, i).get();
+                    const GlVertex xy = delta.get() + getXY(strs, i).get();
 
-                    lastMirrorCubic = GlVertex(x2y2);
+                    // Запоминаем для команды S (зеркальное отражение)
+                    lastMirrorCubic = x2y2;
 
-                    cubicBeizer(lastVert, x1y1, x2y2, xy, current_path);
+                    // Генерируем точки адаптивно
+                    subdivideCubic(lastVert, x1y1, x2y2, xy, BEIZER_FLATNESS, current_path, 0);
+
+                    // ВАЖНО: Обновляем текущую позицию и дельту для СЛЕДУЮЩЕГО сегмента
                     lastVert = xy;
+                    if (curr == "c")
+                    {
+                        delta = lastVert;
+                    }
                 }
                 while (i + 1 < n && checkIfDouble(strs.at(i + 1)));
                 continue;
@@ -266,19 +367,34 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 
             if (curr == "S" || curr == "s")
             {
+                // 1. Читаем координаты из строки (вторая контрольная и конечная)
                 const auto x2y2 = delta.get() + getXY(strs, i).get();
                 const auto xy = delta.get() + getXY(strs, i).get();
-                auto x1y1 = delta.get() + lastVert.get();
+
+                // 2. Определяем первую контрольную точку (x1y1)
+                GlVertex x1y1 = lastVert; // По умолчанию совпадает с текущей точкой
 
                 if (lastMirrorCubic)
                 {
-                    x1y1 = delta.get() + lastMirrorCubic->mirror(lastVert).get();
+                    // Зеркалим ПРЕДЫДУЩУЮ x2y2 относительно ТЕКУЩЕЙ lastVert
+                    // ВАЖНО: lastMirrorCubic у нас уже в абсолютных координатах,
+                    // поэтому delta здесь прибавлять НЕ НУЖНО (она уже там внутри).
+                    x1y1 = lastMirrorCubic->mirror(lastVert);
                 }
 
-                lastMirrorCubic = GlVertex(x2y2);
-                cubicBeizer(lastVert, x1y1, x2y2, xy, current_path);
+                // 3. Сохраняем x2y2 как базу для СЛЕДУЮЩЕГО зеркала (в абсолютных координатах)
+                lastMirrorCubic = x2y2;
 
+                // 4. Запускаем адаптивную рекурсию
+                subdivideCubic(lastVert, x1y1, x2y2, xy, BEIZER_FLATNESS, current_path, 0);
+
+                // 5. Обновляем текущую позицию
                 lastVert = xy;
+                if (curr == "s")
+                {
+                    delta = lastVert; // Не забываем обновлять дельту для относительных команд
+                }
+
                 continue;
             }
 
@@ -409,24 +525,5 @@ GlVertex TagDParser::getY(std::vector<std::string> &src, size_t &index)
 void TagDParser::quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,
                                  Vertexes &path)
 {
-    for (std::size_t step = 1; step <= BEIZER_PARTS; ++step)
-    {
-        const auto t = static_cast<GLdouble>(step) / static_cast<GLdouble>(BEIZER_PARTS);
-        const auto t1 = 1 - t;
-        const GlVertex point = t1 * t1 * x0y0.get() + 2 * t * t1 * x1y1.get() + t * t * xy.get();
-        path.emplace_back(point);
-    }
-}
-
-void TagDParser::cubicBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &x2y2,
-                             const GlVertex &xy, Vertexes &path)
-{
-    for (std::size_t step = 1; step <= BEIZER_PARTS; ++step)
-    {
-        const auto t = static_cast<GLdouble>(step) / static_cast<GLdouble>(BEIZER_PARTS);
-        const auto t1 = 1 - t;
-        const GlVertex point = t1 * t1 * t1 * x0y0.get() + 3 * t * t1 * t1 * x1y1.get()
-                               + 3 * t * t * t1 * x2y2.get() + t * t * t * xy.get();
-        path.emplace_back(point);
-    }
+    subdivideQuadratic(x0y0, x1y1, xy, BEIZER_FLATNESS, path, 0);
 }

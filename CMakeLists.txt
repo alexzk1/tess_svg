@@ -100,25 +100,32 @@ enable_testing()
 # Integration tests.
 set(TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_test_compact.sh")
 
+# IntegrationTest_HoleSquare
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/test.svg")
 set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/expected.json")
-
 add_test(NAME IntegrationTest_HoleSquare
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
+# IntegrationTest_Zeppelin
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_path.svg")
 set(EXPECTED_JSON
     "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_expected.json")
-
 add_test(NAME IntegrationTest_Zeppelin
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
+# IntegrationTest_F
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/F.svg")
 set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/F.json")
-
 add_test(NAME IntegrationTest_F
+         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+                 ${INPUT_SVG} ${EXPECTED_JSON})
+
+# IntegrationTest_Bezie
+set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/bezier.svg")
+set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/bezier.json")
+add_test(NAME IntegrationTest_Bezie
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 

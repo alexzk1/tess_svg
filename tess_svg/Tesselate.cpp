@@ -21,6 +21,31 @@
 #include <memory>
 #include <stdexcept>
 
+namespace {
+void fixWindingOrderForPhysics(Vertexes &points)
+{
+    if (points.size() < 3)
+    {
+        return;
+    }
+
+    double area = 0.0;
+    for (size_t i = 0; i < points.size(); ++i)
+    {
+        const auto &p1 = points[i];
+        const auto &p2 = points[(i + 1) % points.size()]; // Замыкаем на начало
+
+        // Формула площади: sum((x2 - x1) * (y2 + y1))
+        area += (static_cast<double>(p2.x()) - p1.x()) * (static_cast<double>(p2.y()) + p1.y());
+    }
+
+    if (area > 0)
+    {
+        std::reverse(points.begin(), points.end());
+    }
+}
+} // namespace
+
 const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
 {
     std::shared_ptr<GLUtesselator> tess;
@@ -130,6 +155,12 @@ const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
     }
     gluTessEndPolygon(tess.get());
     tess.reset();
+
+    // Если нам нужен только контур для физики, приводим его к CCW
+    if (contourOnly)
+    {
+        fixWindingOrderForPhysics(tlist); // true для CCW
+    }
 
     return tlist;
 }

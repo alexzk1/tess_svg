@@ -1,11 +1,14 @@
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/tagdparser.h"
 
+#include <cmath>
+#include <cstddef>
+#include <cstdlib>
 #include <string>
 
 #include <gtest/gtest.h>
 
-extern std::size_t BEIZER_PARTS;
+extern float BEIZER_FLATNESS;
 extern std::size_t ELLIPSE_POINTS;
 
 namespace Test {
@@ -32,15 +35,20 @@ TEST(TagDParserTest, ImplicitLineCommands)
 
 TEST(TagDParserTest, ImplicitCubicBezier)
 {
-    // Одна команда 'c' на два сегмента (12 чисел)
+    // c 1 1 2 2 3 3 (заканчивается в 3,3)
+    // потом еще 4 4 5 5 6 6 (относительно 3,3 это будет 9,9)
     const std::string path_data = "m 0 0 c 1 1 2 2 3 3 4 4 5 5 6 6";
     auto loops = TagDParser::split(path_data, createIdentityMatrix());
 
-    // Каждый сегмент Безье при BEIZER_PARTS=10 дает 11 точек
-    // У нас 2 сегмента. Точек должно быть много.
     ASSERT_FALSE(loops.empty());
-    // Проверяем финальную точку последнего сегмента
-    EXPECT_NEAR(loops[0].back().x(), 6.0, 0.001);
+
+    // Правильный результат накопления относительных координат
+    EXPECT_NEAR(loops[0].back().x(), 9.0, 0.001);
+    EXPECT_NEAR(loops[0].back().y(), 9.0, 0.001);
+
+    // Поскольку это прямая линия, адаптивный алгоритм даст мало точек
+    // (всего по 2 на сегмент + стартовая = 5 точек)
+    EXPECT_LT(loops[0].size(), 10);
 }
 
 // Тест на слипшиеся координаты с минусами
@@ -252,6 +260,175 @@ TEST(TagDParserTest, LowPrecisionArc)
     EXPECT_LT(loops[0].size(), 5);
 
     ELLIPSE_POINTS = original_points; // Возвращаем назад!
+}
+
+// Тест на адаптивность квадратичной кривой Безье (Q/q)
+TEST(TagDParserTest, AdaptiveQuadraticBezier)
+{
+    // Сохраняем старое значение, чтобы не сломать другие тесты
+    const float original_flatness = BEIZER_FLATNESS;
+
+    const std::string path_data = "M 0 0 Q 50 100 100 0";
+
+    // 1. Проверка при грубой настройке (высокий допуск)
+    BEIZER_FLATNESS = 10.0f;
+    auto loops_rough = TagDParser::split(path_data, createIdentityMatrix());
+    const std::size_t points_rough = loops_rough[0].size();
+
+    // 2. Проверка при точной настройке (низкий допуск)
+    BEIZER_FLATNESS = 0.1f;
+    auto loops_precise = TagDParser::split(path_data, createIdentityMatrix());
+    const std::size_t points_precise = loops_precise[0].size();
+
+    // Точек при 0.1 должно быть значительно больше, чем при 10.0
+    EXPECT_GT(points_precise, points_rough);
+
+    // Проверяем, что кривая всё равно пришла в конечную точку
+    EXPECT_NEAR(loops_precise[0].back().x(), 100.0, 0.001);
+    EXPECT_NEAR(loops_precise[0].back().y(), 0.0, 0.001);
+
+    BEIZER_FLATNESS = original_flatness; // Восстанавливаем
+}
+
+// Тест на адаптивность кубической кривой Безье (C/c)
+TEST(TagDParserTest, AdaptiveCubicBezier)
+{
+    const float original_flatness = BEIZER_FLATNESS;
+
+    // Сложная S-образная кривая
+    const std::string path_data = "M 0 0 C 0 100 100 100 100 0";
+
+    // 1. Высокий допуск (мало точек)
+    BEIZER_FLATNESS = 5.0f;
+    auto loops_rough = TagDParser::split(path_data, createIdentityMatrix());
+
+    // 2. Очень низкий допуск (много точек)
+    BEIZER_FLATNESS = 0.05f;
+    auto loops_precise = TagDParser::split(path_data, createIdentityMatrix());
+
+    EXPECT_GT(loops_precise[0].size(), loops_rough[0].size());
+
+    // Проверка целостности: первая и последняя точки должны быть на месте
+    EXPECT_NEAR(loops_precise[0].front().x(), 0.0, 0.001);
+    EXPECT_NEAR(loops_precise[0].back().x(), 100.0, 0.001);
+
+    BEIZER_FLATNESS = original_flatness;
+}
+
+// Тест на "вырожденную" кривую (когда точки лежат на одной прямой)
+TEST(TagDParserTest, DegenerateBezierFlatness)
+{
+    const float original_flatness = BEIZER_FLATNESS;
+    BEIZER_FLATNESS = 0.5f;
+
+    // Контрольные точки лежат прямо на линии между стартом и концом
+    // M 0,0 -> C 33,0 66,0 -> 100,0
+    const std::string path_data = "M 0 0 C 33 0 66 0 100 0";
+    const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    // Для прямой линии рекурсия должна сработать мгновенно и дать минимум точек
+    // (обычно это старт и конец, или пара делений)
+    EXPECT_LT(loops[0].size(), 5);
+
+    BEIZER_FLATNESS = original_flatness;
+}
+
+// Тест на адаптивность квадратичной кривой Безье (Q/q)
+TEST(TagDParserTest, AdaptiveQuadraticBezier2)
+{
+    // 1. Сохраняем исходное значение, чтобы восстановить в конце
+    const float original_flatness = BEIZER_FLATNESS;
+
+    // Парабола: из (0,0) в (100,0) через вершину (50,100)
+    const std::string path_data = "M 0 0 Q 50 100 100 0";
+
+    // 2. Тестируем "Грубый" режим (Flatness = 10 пикселей)
+    // Алгоритм должен допустить большую погрешность и дать мало точек
+    BEIZER_FLATNESS = 10.0f;
+    auto loops_rough = TagDParser::split(path_data, createIdentityMatrix());
+    const std::size_t points_rough = loops_rough[0].size();
+
+    // 3. Тестируем "Точный" режим (Flatness = 0.1 пикселя)
+    // Алгоритм должен дробить сегменты, пока кривая не станет идеально гладкой
+    BEIZER_FLATNESS = 0.1f;
+    auto loops_precise = TagDParser::split(path_data, createIdentityMatrix());
+    const std::size_t points_precise = loops_precise[0].size();
+
+    // --- ПРОВЕРКИ ---
+
+    // Точек в точном режиме должно быть значительно больше
+    EXPECT_GT(points_precise, points_rough)
+      << "Precise mode should generate more points than rough mode";
+
+    // Проверяем, что кривая всё равно заканчивается там, где должна
+    ASSERT_FALSE(loops_precise[0].empty());
+    EXPECT_NEAR(loops_precise[0].back().x(), 100.0, 0.001);
+    EXPECT_NEAR(loops_precise[0].back().y(), 0.0, 0.001);
+
+    // Проверяем симметрию (для параболы Q 50 100 средняя точка должна быть около x=50)
+    bool found_middle = false;
+    for (const auto &v : loops_precise[0])
+    {
+        if (std::abs(v.x() - 50.0) < 1.0)
+        {
+            found_middle = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_middle) << "Bezier curve should pass through the middle area around X=50";
+
+    // 4. Восстанавливаем глобальное состояние
+    BEIZER_FLATNESS = original_flatness;
+}
+
+TEST(TagDParserTest, BezierPointsOrder)
+{
+    const float original_flatness = BEIZER_FLATNESS;
+    BEIZER_FLATNESS = 1.0f; // Достаточная точность
+
+    // Тестируем кубическую кривую C
+    const std::string path_data = "M 0 0 C 50 100 150 -100 200 0";
+    const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    ASSERT_FALSE(loops.empty());
+    const auto &points = loops[0];
+    ASSERT_GT(points.size(), 2);
+
+    // Проверяем, что первая точка - старт, последняя - конец
+    EXPECT_NEAR(points.front().x(), 0.0, 0.001);
+    EXPECT_NEAR(points.back().x(), 200.0, 0.001);
+
+    // Главная проверка: каждая следующая точка должна быть "дальше" по параметру t.
+    // Для простой S-кривой вдоль оси X мы можем проверить, что X растет (или хотя бы не прыгает
+    // хаотично) Но лучше проверить, что сумма расстояний между соседними точками адекватна.
+
+    float total_path_length = 0;
+    for (size_t i = 1; i < points.size(); ++i)
+    {
+        const auto dx = points[i].x() - points[i - 1].x();
+        const auto dy = points[i].y() - points[i - 1].y();
+        const auto dist = std::sqrt(dx * dx + dy * dy);
+
+        // Если точки перепутаны, у нас будут огромные скачки назад-вперед
+        // Расстояние между соседними точками в адаптивном делении не должно
+        // быть больше, чем, скажем, 1/2 всей длины кривой (очень грубый фильтр)
+        EXPECT_LT(dist, 150.0) << "Points are likely out of order at index " << i;
+        total_path_length += dist;
+    }
+
+    // Для кривой от 0 до 200 общая длина пути должна быть чуть больше 200,
+    // но если точки прыгают туда-сюда (0 -> 200 -> 100), длина будет огромной.
+    EXPECT_LT(total_path_length, 600.0) << "Total path length is too high, points are jumping!";
+
+    const float direct_dist = std::sqrt(std::pow(points.back().x() - points.front().x(), 2)
+                                        + std::pow(points.back().y() - points.front().y(), 2));
+
+    // Сумма длин всех сегментов (total_path_length) не должна быть
+    // в 10 раз больше, чем расстояние по прямой (если только это не бешеная спираль)
+    EXPECT_LT(total_path_length, direct_dist * 5.0)
+      << "Path is too 'noisy' or points were swapped, total_path_length: " << total_path_length;
+
+    BEIZER_FLATNESS = original_flatness;
 }
 
 } // namespace Test

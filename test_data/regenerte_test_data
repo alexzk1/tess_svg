@@ -1,5 +1,6 @@
 #!/bin/bash
 
-../build/Desktop-Debug/tess_svg -i test.svg -J --epoints 128 -o expected.json
-../build/Desktop-Debug/tess_svg -i zeppelin_path.svg -J --epoints 128 -o zeppelin_expected.json
-../build/Desktop-Debug/tess_svg -i F.svg -J --epoints 128 -o F.json
+../build/Desktop-Debug/tess_svg -i test.svg -J --epoints 128 --bflatness 0.5 -o expected.json
+../build/Desktop-Debug/tess_svg -i zeppelin_path.svg -J --epoints 128 --bflatness 0.5 -o zeppelin_expected.json
+../build/Desktop-Debug/tess_svg -i F.svg -J --epoints 128 --bflatness 0.5 -o F.json
+../build/Desktop-Debug/tess_svg -i bezier.svg -J --epoints 128 --bflatness 0.5 -o bezier.json

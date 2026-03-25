@@ -16,8 +16,6 @@ class TagDParser
 
     static void quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,
                                 Vertexes &path);
-    static void cubicBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &x2y2,
-                            const GlVertex &xy, Vertexes &path);
 
   public:
     TagDParser() = default;

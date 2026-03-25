@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <iterator>
 #include <regex>
-#include <type_traits>
 
 const SvgPath::transform_funcs SvgPath::transforms = {
   SvgPath::func_holder("translate(",

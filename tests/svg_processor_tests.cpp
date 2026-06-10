@@ -128,6 +128,24 @@ TEST_F(SvgIntegrationTest, DeeplyNestedTransformations)
     EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 200.0, 1e-4);
 }
 
+TEST_F(SvgIntegrationTest, DeeplyNestedTransformationsScaled)
+{
+    // Проверяем масштаб и поворот одновременно
+    const std::string svg = R"svg(
+        <svg>
+            <g transform="scale(2)">
+                <g transform="rotate(90)">
+                    <rect x="0" y="0" width="10" height= "20"/>
+                </g>
+            </g>
+        </svg>)svg";
+    auto ss = std::make_unique<std::stringstream>(svg);
+    const SvgProcessor processor(*ss);
+
+    // Area 200 * (scale 2)^2 = 800. Поворот не влияет на площадь.
+    EXPECT_NEAR(TestUtils::calculateTotalAreaFromProcessor(processor), 800.0, 1e-4);
+}
+
 // 4. Тест: Комбинированный Scale + Translate (проверка порядка умножения матриц)
 TEST_F(SvgIntegrationTest, ScaleAndTranslateOrder)
 {

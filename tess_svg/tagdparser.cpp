@@ -229,17 +229,36 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     const std::sregex_token_iterator end;
 
     std::vector<std::string> strs;
+    bool hasCommands = false;
     for (; iter != end; ++iter)
     {
         std::string s = *iter;
         if (!s.empty())
         {
+            if (!checkIfDouble(s))
+            {
+                hasCommands = true;
+            }
             strs.push_back(std::move(s));
         }
     }
 
-    Loops result;
+    if (!hasCommands && !strs.empty())
+    {
+        // Polyline mode, it contains coordinates only.
+        Vertexes poly_path;
+        for (size_t i = 0; i < strs.size(); i += 2)
+        {
+            if (i + 1 < strs.size())
+            {
+                poly_path.emplace_back(strs.at(i), strs.at(i + 1));
+                poly_path.back().translate(translate);
+            }
+        }
+        return {std::move(poly_path)};
+    }
 
+    Loops result;
     GlVertex lastVert(0, 0);
     GlVertex lastInitial = lastVert;
     std::optional<GlVertex> lastMirrorQuadratic{std::nullopt};

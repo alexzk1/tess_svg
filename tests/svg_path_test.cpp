@@ -1,6 +1,7 @@
 #include "pugixml.hpp"
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgPath.h"
+#include "tess_svg/node_transform.hpp"
 
 #include <string>
 
@@ -21,7 +22,7 @@ TEST_F(SvgPathTest, TransformParsing)
         GlVertex::trans_matrix_t m = GlVertex::getIdentity();
         const std::string t = "translate(10, 20)";
         // Эмулируем работу SvgPath::transforms
-        for (auto &f : SvgPathTest::transforms)
+        for (auto &f : trans_detals::getTransformParsers())
         {
             if (f.exec(t, m))
             {
@@ -36,7 +37,7 @@ TEST_F(SvgPathTest, TransformParsing)
     {
         GlVertex::trans_matrix_t m = GlVertex::getIdentity();
         const std::string t = "scale(2, 3)";
-        for (auto &f : SvgPathTest::transforms)
+        for (auto &f : trans_detals::getTransformParsers())
         {
             if (f.exec(t, m))
             {
@@ -52,7 +53,7 @@ TEST_F(SvgPathTest, TransformParsing)
         GlVertex::trans_matrix_t m = GlVertex::getIdentity();
         // matrix(a,b,c,d,e,f) -> a=1, b=0, c=0, d=1, e=50, f=60 (это просто translate)
         const std::string t = "matrix(1, 0, 0, 1, 50, 60)";
-        for (auto &f : SvgPathTest::transforms)
+        for (auto &f : trans_detals::getTransformParsers())
         {
             if (f.exec(t, m))
             {

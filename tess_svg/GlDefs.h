@@ -8,10 +8,7 @@
 #include "../engine/Vector2.h"
 
 #include <GL/gl.h>
-#include <GL/glu.h>
 
-#include <algorithm>
-#include <cmath>
 #include <vector>
 
 constexpr int GL_PREC = 17;

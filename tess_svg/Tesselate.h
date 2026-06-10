@@ -7,9 +7,6 @@
 
 #include "GlDefs.h"
 
-#include <functional>
-#include <memory>
-
 class Tesselate
 {
   public:
@@ -18,6 +15,7 @@ class Tesselate
 
   public:
     const Vertexes &process(const Loops &vertexes, bool contourOnly);
+    [[nodiscard]]
     const Vertexes &getTesselated() const;
 };
 

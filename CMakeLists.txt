@@ -10,14 +10,33 @@ include(cmake_incl/cpm_install.cmake)
 cpmaddpackage(URI "gh:zeux/pugixml@1.15")
 cpmaddpackage(URI "gh:nlohmann/json@3.12.0" OPTIONS "JSON_BuildTests OFF")
 
+set(CLIPPER2_EXAMPLES
+    OFF
+    CACHE BOOL "" FORCE)
+set(CLIPPER2_TESTS
+    OFF
+    CACHE BOOL "" FORCE)
+set(CLIPPER2_HI_PRECISION
+    ON
+    CACHE BOOL "" FORCE)
+
+cpmaddpackage(URI "gh:AngusJohnson/Clipper2#Clipper2_2.0.1")
+if(EXISTS "${Clipper2_SOURCE_DIR}/CPP/CMakeLists.txt")
+  add_subdirectory(${Clipper2_SOURCE_DIR}/CPP
+                   ${Clipper2_BINARY_DIR}/Clipper2_Build})
+else()
+  message(
+    FATAL_ERROR
+      "Clipper2 '${Clipper2_SOURCE_DIR}/CPP' directory not found! Check your CPM download."
+  )
+endif()
+
 find_package(Threads REQUIRED)
 find_package(Boost 1.87 REQUIRED COMPONENTS program_options filesystem)
 if(UNIX AND NOT APPLE)
   find_package(OpenGL REQUIRED)
   find_library(GLU_LIBRARY NAMES GLU GLU32)
 endif()
-
-find_package(SFML)
 
 # 1. Список исходных файлов
 file(GLOB_RECURSE SOURCES_NO_MAIN CONFIGURE_DEPENDS tess_svg/*.h tess_svg/*.hpp
@@ -26,6 +45,7 @@ file(GLOB_RECURSE SOURCES_NO_MAIN CONFIGURE_DEPENDS tess_svg/*.h tess_svg/*.hpp
 set(SOURCES main.cpp ${SOURCES_NO_MAIN})
 
 # 1. Создание исполняемого файла
+find_package(SFML)
 add_executable(${PROJECT_NAME} ${SOURCES})
 if(NOT SFML_FOUND)
   target_compile_definitions(${PROJECT_NAME} PRIVATE NO_SFML)
@@ -51,7 +71,15 @@ target_compile_options(
           -Wstrict-aliasing=2)
 
 # 1. Специфичные настройки для Debug и Release
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  message(STATUS "Building the RELEASE Version")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
+  target_compile_options(${PROJECT_NAME} PRIVATE -O3 -march=native)
+
+  add_compile_options(-flto=4)
+  add_link_options(-flto=4)
+  message(STATUS "LTO forced for Release build")
+else()
   message(STATUS "Building the DEBUG Version")
   target_compile_definitions(${PROJECT_NAME} PRIVATE _DEBUG)
   target_compile_options(${PROJECT_NAME} PRIVATE -march=native -O0 -g)
@@ -61,10 +89,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
                                                    -fsanitize=vptr)
     target_link_libraries(${PROJECT_NAME} PRIVATE ubsan)
   endif()
-else()
-  message(STATUS "Building the RELEASE Version")
-  target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
-  target_compile_options(${PROJECT_NAME} PRIVATE -O3 -march=native)
 endif()
 
 if(GLU_LIBRARY)
@@ -79,6 +103,7 @@ target_link_libraries(
   PRIVATE Threads::Threads
           ${GLU_LIBRARY}
           OpenGL::GL
+          Clipper2
           Boost::program_options
           Boost::filesystem
           pugixml::pugixml
@@ -166,8 +191,13 @@ if(BUILD_TESTS)
       # Should we link SFML if found?
       target_link_libraries(
         tess_svg_tests
-        PRIVATE GTest::gtest_main pugixml::pugixml Threads::Threads
-                ${GLU_LIBRARY} OpenGL::GL nlohmann_json::nlohmann_json)
+        PRIVATE GTest::gtest_main
+                pugixml::pugixml
+                Threads::Threads
+                Clipper2
+                ${GLU_LIBRARY}
+                OpenGL::GL
+                nlohmann_json::nlohmann_json)
     endif()
 
     target_include_directories(

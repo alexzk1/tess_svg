@@ -10,12 +10,19 @@
 namespace Test {
 
 namespace {
-class SvgPathTest : public SvgPath, public ::testing::Test
+class SvgParsersTest : public ::testing::Test
 {
+  public:
+    static GlVertex::trans_matrix_t transf(const pugi::xml_node &parent)
+    {
+        GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
+        updateTransform(parent, parentTrans);
+        return parentTrans;
+    }
 };
 } // namespace
 
-TEST_F(SvgPathTest, TransformParsing)
+TEST_F(SvgParsersTest, TransformParsing)
 {
     // Translate
     {
@@ -65,7 +72,7 @@ TEST_F(SvgPathTest, TransformParsing)
     }
 }
 
-TEST_F(SvgPathTest, FullNodeInterfaceTest)
+TEST_F(SvgParsersTest, FullNodeInterfaceTest)
 {
     pugi::xml_document doc;
     // Создаем структуру: <g transform="translate(10,20)"><path d="M 0 0 L 10 10" /></g>
@@ -75,16 +82,14 @@ TEST_F(SvgPathTest, FullNodeInterfaceTest)
     auto path_node = group.append_child("path");
     path_node.append_attribute("d") = "M 0 0 L 10 10";
 
-    // 1. Создаем объект (он вызовет parse_node внутри конструктора)
-    const SvgPath path_obj(path_node, group);
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(path_node, transf(group));
 
     ASSERT_FALSE(loops.empty());
     EXPECT_DOUBLE_EQ(loops[0][0].x(), 100.0);
     EXPECT_DOUBLE_EQ(loops[0][0].y(), 200.0);
 }
 
-TEST_F(SvgPathTest, CombinedInterfaceScaleTest)
+TEST_F(SvgParsersTest, CombinedInterfaceScaleTest)
 {
     pugi::xml_document doc;
     auto group = doc.append_child("g");
@@ -94,8 +99,7 @@ TEST_F(SvgPathTest, CombinedInterfaceScaleTest)
     auto path_node = group.append_child("path");
     path_node.append_attribute("d") = "M 0 0 L 10 10";
 
-    const SvgPath path_obj(path_node, group);
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(path_node, transf(group));
 
     ASSERT_EQ(loops[0].size(), 2);
 
@@ -105,7 +109,7 @@ TEST_F(SvgPathTest, CombinedInterfaceScaleTest)
     EXPECT_DOUBLE_EQ(loops[0][1].x(), 120.0);
 }
 
-TEST_F(SvgPathTest, NestedTransformTest)
+TEST_F(SvgParsersTest, NestedTransformTest)
 {
     pugi::xml_document doc;
     // Родитель со сдвигом
@@ -117,8 +121,7 @@ TEST_F(SvgPathTest, NestedTransformTest)
     path_node.append_attribute("transform") = "scale(2, 2)";
     path_node.append_attribute("d") = "M 5 5";
 
-    const SvgPath path_obj(path_node, group);
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(path_node, transf(group));
 
     // ОЖИДАНИЕ:
     // Сначала Translate(10), потом Scale(2) для точки (5,5)
@@ -126,7 +129,7 @@ TEST_F(SvgPathTest, NestedTransformTest)
     EXPECT_DOUBLE_EQ(loops[0][0].x(), 20.0);
 }
 
-TEST_F(SvgPathTest, CompactTransformParsing)
+TEST_F(SvgParsersTest, CompactTransformParsing)
 {
     pugi::xml_document doc;
     auto node = doc.append_child("path");
@@ -134,45 +137,41 @@ TEST_F(SvgPathTest, CompactTransformParsing)
     node.append_attribute("transform") = "translate(10,10)scale(2,2)";
     node.append_attribute("d") = "M 0 0";
 
-    // Используем пустую ноду как родителя
-    const SvgPath path_obj(node, pugi::xml_node());
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(node, transf({}));
 
     // Если регулярка в exec и поиск find(mask) работают верно,
     // точка (0,0) должна просто сдвинуться на 10.
     EXPECT_DOUBLE_EQ(loops[0][0].x(), 10.0);
 }
 
-TEST_F(SvgPathTest, MirroringScaleTest)
+TEST_F(SvgParsersTest, MirroringScaleTest)
 {
     pugi::xml_document doc;
     auto node = doc.append_child("path");
     node.append_attribute("transform") = "scale(-1, 1)"; // Отражение по X
     node.append_attribute("d") = "M 10 0";
 
-    const SvgPath path_obj(node, pugi::xml_node());
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(node, transf({}));
 
     // Точка 10 должна стать -10
     EXPECT_DOUBLE_EQ(loops[0][0].x(), -10.0);
 }
 
-TEST_F(SvgPathTest, RotationTest)
+TEST_F(SvgParsersTest, RotationTest)
 {
     pugi::xml_document doc;
     auto node = doc.append_child("path");
     node.append_attribute("transform") = "rotate(90)";
     node.append_attribute("d") = "M 10 0";
 
-    const SvgPath path_obj(node, pugi::xml_node());
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(node, transf({}));
 
     // После поворота на 90 градусов: x -> 0, y -> 10
     EXPECT_NEAR(loops[0][0].x(), 0.0, 1e-9);
     EXPECT_NEAR(loops[0][0].y(), 10.0, 1e-9);
 }
 
-TEST_F(SvgPathTest, DoubleSameTransformTest)
+TEST_F(SvgParsersTest, DoubleSameTransformTest)
 {
     pugi::xml_document doc;
     auto node = doc.append_child("path");
@@ -180,8 +179,7 @@ TEST_F(SvgPathTest, DoubleSameTransformTest)
     node.append_attribute("transform") = "translate(10, 10) translate(20, 20)";
     node.append_attribute("d") = "M 0 0";
 
-    const SvgPath path_obj(node, pugi::xml_node());
-    const auto &loops = path_obj.getLoops();
+    const auto loops = SvgParsers::parsePath(node, transf({}));
 
     // ОЖИДАНИЕ: 10 + 20 = 30
     EXPECT_DOUBLE_EQ(loops[0][0].x(), 30.0);

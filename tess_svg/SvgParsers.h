@@ -2,27 +2,17 @@
 // Created by alex on 7/15/15.
 //
 
-#ifndef TESSVG_SVGPATH_H
-#define TESSVG_SVGPATH_H
+#pragma once
 
 #include "GlDefs.h"
 
 #include <pugixml.hpp>
 
-class SvgPath
-{
-  public:
-    SvgPath() = default;
-    SvgPath(const SvgPath &) = default;
+#include <functional>
 
-    SvgPath(const pugi::xml_node &node, const pugi::xml_node &parentNode);
-    void parse_node(const pugi::xml_node &node);
-    [[nodiscard]]
-    const Loops &getLoops() const;
+using ShapeParser = std::function<Loops(const pugi::xml_node & /*nodeToParse*/,
+                                        GlVertex::trans_matrix_t /*parentTransform*/)>;
 
-  private:
-    Loops loops;
-    const pugi::xml_node parentNode;
-};
-
-#endif // TESSVG_SVGPATH_H
+namespace SvgParsers {
+Loops parsePath(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTransform);
+} // namespace SvgParsers

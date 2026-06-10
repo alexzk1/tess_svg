@@ -6,6 +6,7 @@
 
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgParsers.h"
+#include "tess_svg/node_transform.hpp"
 #include "util_helpers.h"
 
 #include <functional>
@@ -56,11 +57,12 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
     // todo: add more text nodes to tesselated
 
     const std::string node_name(toLower(node.name()));
+    GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
+    updateTransform(parent, parentTrans);
 
     if (node_name == "path")
     {
-        const SvgPath ptr(node, parent);
-        auto &a = ptr.getLoops();
+        auto a = SvgParsers::parsePath(node, parentTrans);
         if (loops != nullptr)
         {
             loops->clear();

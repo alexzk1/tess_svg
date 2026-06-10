@@ -11,30 +11,24 @@
 
 #include <pugixml.hpp>
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-SvgPath::SvgPath(const pugi::xml_node &node, const pugi::xml_node &parentNode) :
-    parentNode(parentNode)
+#include <stdexcept>
+#include <string>
+
+namespace {
+void throwIfWrongTag(const std::string &name, const pugi::xml_node &node)
 {
-    parse_node(node);
-}
-
-void SvgPath::parse_node(const pugi::xml_node &node)
-{
-    GlVertex::trans_matrix_t vtr = GlVertex::getIdentity();
-
-    loops.clear();
-    // 1. Сначала применяем трансформ родителя
-    updateTransform(parentNode, vtr);
-    // 2. Затем ПОВЕРХ применяем трансформ самой ноды (умножение произойдет внутри)
-    updateTransform(node, vtr);
-
-    if (toLower(node.name()) == "path")
+    if (toLower(node.name()) != name)
     {
-        loops = TagDParser::split(node.attribute("d").as_string(), vtr);
+        throw std::runtime_error("Invalid node was passed to handler function.");
     }
 }
+} // namespace
 
-const Loops &SvgPath::getLoops() const
+namespace SvgParsers {
+Loops parsePath(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTransform)
 {
-    return loops;
+    throwIfWrongTag("path", node);
+    updateTransform(node, parentTransform);
+    return TagDParser::split(node.attribute("d").as_string(), parentTransform);
 }
+} // namespace SvgParsers

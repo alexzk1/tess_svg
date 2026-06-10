@@ -7,12 +7,19 @@
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgParsers.h"
 #include "tess_svg/node_transform.hpp"
-#include "util_helpers.h"
 
+#include <cstddef>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <utility>
+
+struct SvgProcessor::RecursionParameters
+{
+    GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
+    Loops singleNodeLoops{};
+};
 
 SvgProcessor::SvgProcessor(std::istream &src) :
     doc()
@@ -33,7 +40,8 @@ void SvgProcessor::parse_svg_file(std::istream &src)
         throw xmlerror(res.description());
     }
 
-    parse(doc.first_child(), doc.first_child(), nullptr, nullptr);
+    RecursionParameters initialParams{};
+    parse(0u, doc.first_child(), initialParams);
 }
 
 const SvgProcessor::group_t &SvgProcessor::getTesselated() const
@@ -51,31 +59,22 @@ void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(Bounde
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
-                         Loops *total_loops_param)
+void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
+                         RecursionParameters &params)
 {
-    GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
-    updateTransform(parent, parentTrans);
     const NodeParser parser(node);
 
     if (parser.isSupported())
     {
-        auto nodeLoops = parser.parse(parentTrans);
-        if (loops != nullptr)
+        // Bottom of the recursion - single node which cannot have children.
+        if (0u == recursionLevel) [[unlikely]]
         {
-            loops->clear();
-            *loops = nodeLoops;
+            throw std::runtime_error("SVG is broken. Root object must be <svg>.");
         }
-
-        if (total_loops_param != nullptr)
-        {
-            total_loops_param->insert(total_loops_param->end(), nodeLoops.cbegin(),
-                                      nodeLoops.cend());
-        }
+        params.singleNodeLoops = parser.parse(params.parentTrans);
     }
     else
     {
-        Loops total_loops;
         const bool groupped = (parser.nodeName() == "g");
         const std::string id(node.attribute("id").as_string());
         if (groupped)
@@ -83,26 +82,32 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
             tesselated.emplace_back(std::make_pair(id, BoundedGroup()));
         }
 
-        for (pugi::xml_node tool = node.first_child(); tool; tool = tool.next_sibling())
+        RecursionParameters childrenParams{params.parentTrans};
+        updateTransform(node, childrenParams.parentTrans);
+
+        for (pugi::xml_node childNode = node.first_child(); childNode;
+             childNode = childNode.next_sibling())
         {
-            const std::string tool_id(tool.attribute("id").as_string());
-            Loops curr_loops;
+            childrenParams.singleNodeLoops.clear();
+            parse(recursionLevel + 1, childNode, childrenParams);
 
-            parse(tool, node, &curr_loops, (groupped) ? &total_loops : nullptr);
-
-            if (curr_loops.size() > 0)
+            if (childrenParams.singleNodeLoops.size() > 0)
             {
+                const auto childNodeId = childNode.attribute("id").as_string();
                 if (!groupped)
                 {
-                    tesselated.emplace_back(std::make_pair(tool_id, BoundedGroup()));
+                    // <svg><rect/></svg> case.
+                    tesselated.emplace_back(std::make_pair(childNodeId, BoundedGroup()));
                 }
 
                 TessResult tess;
-                tess.setAttributes(tool);
-                tess.vertexes = ts.process(curr_loops, true);
-                tesselated.back().second.pathes.emplace_back(std::make_pair(tool_id, tess));
+                tess.setAttributes(childNode);
+                tess.vertexes = ts.process(childrenParams.singleNodeLoops, true);
+                tesselated.back().second.pathes.emplace_back(std::make_pair(childNodeId, tess));
+
                 if (!groupped)
                 {
+                    // <svg><rect/></svg> case.
                     tesselated.back().second.vertexes = tess.vertexes;
                     tesselated.back().second.makeBounds();
                 }
@@ -127,9 +132,6 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
                 currentGroup.bounds.add_point(p.second.bounds.xmin, p.second.bounds.ymin);
                 currentGroup.bounds.add_point(p.second.bounds.xmax, p.second.bounds.ymax);
             }
-
-            // !!! ВАЖНО: Мы НЕ вызываем ts.process(total_loops),
-            // чтобы не создавать "склейку" в currentGroup.vertexes
         }
     }
 }

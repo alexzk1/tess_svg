@@ -12,6 +12,7 @@
 #include "pugixml.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <istream>
 #include <map>
@@ -124,11 +125,12 @@ class SvgProcessor
     using group_t = std::vector<std::pair<std::string, BoundedGroup>>;
 
   private:
+    struct RecursionParameters;
+    void parse(std::size_t recursionLevel, const pugi::xml_node &node, RecursionParameters &params);
+
     Tesselate ts;
     pugi::xml_document doc;
     group_t tesselated;
-    void parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
-               Loops *total_loops_param);
 
   public:
     SvgProcessor() = default;

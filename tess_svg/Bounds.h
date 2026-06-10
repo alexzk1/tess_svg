@@ -14,7 +14,7 @@ template <class T, int precission = 15>
 class Bounds
 {
   private:
-    bool notset;
+    bool notset{};
 
   public:
     T xmin;
@@ -48,7 +48,7 @@ class Bounds
         return std::max(width(), height());
     }
 
-    void add_point(T x, T y)
+    void add_point(T x, T y) // NOLINT
     {
         if (notset)
         {
@@ -71,7 +71,9 @@ class Bounds
         if (!other.notset)
         {
             if (notset)
+            {
                 *this = other;
+            }
             else
             {
                 xmin = std::min(xmin, other.xmin);
@@ -89,7 +91,7 @@ class Bounds
         return Vector2<T, precission>((xmin + xmax) / 2., (ymin + ymax) / 2.);
     }
 
-    void offset(T x, T y)
+    void offset(T x, T y) // NOLINT
     {
         if (!notset)
         {
@@ -101,6 +103,6 @@ class Bounds
     }
 };
 
-typedef Bounds<GLdouble, GL_PREC> GlBounds;
+using GlBounds = Bounds<GLdouble, GL_PREC>;
 
 #endif // TESSVG_BOUNDS_H

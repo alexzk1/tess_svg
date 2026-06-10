@@ -11,6 +11,7 @@
 #include <functional>
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 
 class SvgPath
@@ -18,22 +19,22 @@ class SvgPath
   protected:
     class func_holder
     {
-
-      private:
-        typedef std::function<void(GlVertex::trans_matrix_t &, std::sregex_token_iterator &)>
-          lambda_t;
-        const std::string mask;
-        const lambda_t func;
-
       public:
-        func_holder(const std::string &mask, const lambda_t &func) :
-            mask(mask),
-            func(func)
+        using lambda_t =
+          std::function<void(GlVertex::trans_matrix_t &, std::sregex_token_iterator &)>;
+
+        func_holder(std::string mask, lambda_t func) :
+            mask(std::move(mask)),
+            func(std::move(func))
         {
         }
         bool exec(const std::string &src, GlVertex::trans_matrix_t &res) const;
+
+      private:
+        const std::string mask;
+        const lambda_t func;
     };
-    typedef std::vector<func_holder> transform_funcs;
+    using transform_funcs = std::vector<func_holder>;
     const static transform_funcs transforms;
 
   public:
@@ -42,6 +43,7 @@ class SvgPath
 
     SvgPath(const pugi::xml_node &node, const pugi::xml_node &parentNode);
     void parse_node(const pugi::xml_node &node);
+    [[nodiscard]]
     const Loops &getLoops() const;
 
   private:

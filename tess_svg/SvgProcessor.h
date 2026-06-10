@@ -23,8 +23,8 @@
 class xmlerror : public std::runtime_error
 {
   public:
-    explicit xmlerror(const std::string &__arg) :
-        runtime_error(__arg)
+    explicit xmlerror(const std::string &_arg) :
+        runtime_error(_arg)
     {
     }
 };
@@ -34,9 +34,7 @@ class SvgProcessor
   protected:
     struct WithBounds
     {
-        GlBounds bounds;
-        Vertexes vertexes;
-
+        virtual ~WithBounds();
         void makeBounds()
         {
             bounds.reset();
@@ -56,10 +54,17 @@ class SvgProcessor
             }
             updateBounds();
         }
-        virtual ~WithBounds()
-        {
-            bounds.reset();
-        }
+
+        WithBounds() = default;
+        WithBounds(const WithBounds &) = default;
+        WithBounds &operator=(const WithBounds &) = default;
+
+        WithBounds(WithBounds &&) = default;
+        WithBounds &operator=(WithBounds &&) = default;
+
+      public:
+        GlBounds bounds;
+        Vertexes vertexes;
 
       protected:
         virtual void updateBounds()
@@ -84,19 +89,14 @@ class SvgProcessor
                 attributes[std::string(attr->name())] = std::string(attr->as_string());
             }
         }
-
-      protected:
     };
 
     using pathes_t = std::vector<std::pair<std::string, TessResult>>;
 
     struct BoundedGroup : public WithBounds
     {
+
         pathes_t pathes;
-        ~BoundedGroup() override
-        {
-            pathes.clear();
-        }
 
       protected:
         void updateBounds() override
@@ -134,6 +134,7 @@ class SvgProcessor
     SvgProcessor() = default;
     explicit SvgProcessor(std::istream &src);
     void parse_svg_file(std::istream &src);
+    [[nodiscard]]
     const group_t &getTesselated() const;
     void postProcessTesselatedVerteces(const std::function<void(BoundedGroup &)> &func);
 };

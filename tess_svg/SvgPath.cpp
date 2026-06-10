@@ -9,7 +9,7 @@
 #include "tess_svg/GlDefs.h"
 #include "util_helpers.h"
 
-#include <math.h>
+#include <math.h> //NOLINT
 
 #include <array>
 #include <cstddef>

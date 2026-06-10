@@ -99,8 +99,7 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
                 TessResult tess;
                 tess.setAttributes(tool);
                 tess.vertexes = ts.process(curr_loops, true);
-                auto path = std::make_pair(tool_id, tess);
-                tesselated.back().second.pathes.push_back(path);
+                tesselated.back().second.pathes.emplace_back(std::make_pair(tool_id, tess));
                 if (!groupped)
                 {
                     tesselated.back().second.vertexes = tess.vertexes;
@@ -133,3 +132,5 @@ void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &paren
         }
     }
 }
+
+SvgProcessor::WithBounds::~WithBounds() = default;

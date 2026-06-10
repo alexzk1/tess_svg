@@ -2,7 +2,7 @@
 #define TAGDPARSER_H
 #include "GlDefs.h"
 
-#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
 // http://www.w3.org/TR/SVG11/paths.html

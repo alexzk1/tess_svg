@@ -1,7 +1,7 @@
 # Contributor: Oleksiy Zakharov <alexzkhr@gmail.com>
 
 pkgname=tess_svg
-pkgver=0.6.0
+pkgver=0.7.0
 pkgrel=1
 pkgdesc="Translates SVG file into vertexes collections."
 
@@ -36,4 +36,5 @@ package() {
   cp $srcdir/tess_svg/generated_support/*.* $pkgdir/usr/share/tess_svg
 
   install -D -m644 $srcdir/tess_svg/LICENSE $pkgdir/usr/share/licenses/tess_svg/LICENSE
+  install -D -m644 $srcdir/tess_svg/build/LEGAL.txt $pkgdir/usr/share/licenses/tess_svg/LEGAL
 }

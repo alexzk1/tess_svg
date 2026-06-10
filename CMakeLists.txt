@@ -6,12 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_TESTS "Enable unit tests" OFF)
 
-# Download CPM.cmake (package manager for cmake)
-file(
-  DOWNLOAD
-  https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/get_cpm.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+include(cmake_incl/cpm_install.cmake)
 cpmaddpackage(URI "gh:zeux/pugixml@1.15")
 cpmaddpackage(URI "gh:nlohmann/json@3.12.0" OPTIONS "JSON_BuildTests OFF")
 
@@ -182,3 +177,5 @@ if(BUILD_TESTS)
     gtest_discover_tests(tess_svg_tests)
   endif()
 endif()
+
+setup_legal_check(${PROJECT_NAME})

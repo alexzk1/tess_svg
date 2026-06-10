@@ -1,9 +1,12 @@
 # TessSVG: Command-Line SVG Geometry Compiler
 
-TessSVG is a high-performance CLI tool that converts SVG paths into triangulated 2D geometry. It bridges the gap between vector design tools (Inkscape, Adobe Illustrator) and game engines/physics solvers.
+TessSVG is a high-performance CLI tool that converts SVG paths into triangulated 2D geometry. 
+It bridges the gap between vector design tools (Inkscape, Adobe Illustrator) and game engines/physics solvers.
+
 # 🛠 What it does
 
-It parses SVG files, applies all nested transformations, and exports the resulting coordinates into various formats. It’s perfect for generating collision hitboxes, navmesh data, or static vertex buffers.
+It parses SVG files, applies all nested transformations, and exports the resulting coordinates into various formats. 
+It’s perfect for generating collision hitboxes, navmesh data, or static vertex buffers.
 
 # 🚀 Key Features
 

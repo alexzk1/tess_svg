@@ -13,9 +13,12 @@
 
 #include <algorithm>
 #include <functional>
+#include <istream>
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 class xmlerror : public std::runtime_error
 {

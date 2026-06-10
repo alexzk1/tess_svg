@@ -157,9 +157,12 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 
     for (const auto &g : what)
     {
-        const bool morethan1 = g.second.pathes.size() > 1;
+        if (g.second.pathes.empty())
+        {
+            continue;
+        }
 
-        if (morethan1)
+        if (g.second.pathes.size() > 1)
         {
             json group = json::object();
             group["outline"] = out_polygon(g);

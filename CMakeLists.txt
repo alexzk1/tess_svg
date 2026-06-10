@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(tess_svg LANGUAGES CXX)
 
-# Установка стандарта C++17 (как в вашем CONFIG += c++17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

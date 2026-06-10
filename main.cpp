@@ -1,16 +1,14 @@
-#include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgProcessor.h"
 #include "tess_svg/idumper.h"
 
-#include <boost/filesystem.hpp>      //NOLINT
+#include <boost/filesystem.hpp> //NOLINT
+#include <boost/filesystem/path.hpp>
 #include <boost/program_options.hpp> //NOLINT
 #include <boost/program_options/detail/parsers.hpp>
 #include <boost/program_options/errors.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
-
-#include <sys/stat.h>
 
 #include <cstddef>
 #include <exception>

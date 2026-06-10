@@ -6,6 +6,9 @@
 #define TESSVG_BOUNDS_H
 
 #include "GlDefs.h"
+#include "engine/Vector2.h"
+
+#include <GL/gl.h>
 
 template <class T, int precission = 15>
 class Bounds

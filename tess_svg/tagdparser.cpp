@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -17,6 +18,8 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -34,17 +37,21 @@ T pointAngle(T cx, T cy, T px, T py)
     return std::atan2(py - cy, px - cx);
 }
 
-bool checkIfDouble(const std::string &val) noexcept
+bool checkIfDouble(std::string_view val) noexcept
 {
-    try
+    if (val.empty())
     {
-        std::stod(val);
-        return true;
+        return false;
     }
-    catch (...) // NOLINT
-    {
-    }
-    return false;
+
+    double dummy = 0.0;
+    // std::from_chars возвращает структуру с указателем на окончание и код ошибки
+    const auto [ptr, ec] = std::from_chars(val.data(), val.data() + val.size(), dummy);
+
+    // Успех только если:
+    // 1. Ошибок не было (ec == std::errc{})
+    // 2. Мы прочитали всю строку целиком (ptr указывает на конец строки)
+    return ec == std::errc{} && ptr == val.data() + val.size();
 }
 
 bool checkIfRelative(const std::string &val)

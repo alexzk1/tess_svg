@@ -7,6 +7,7 @@
 
 #include "../engine/Vector2.h"
 
+#include <GL/gl.h>
 #include <GL/glu.h>
 
 #include <algorithm>

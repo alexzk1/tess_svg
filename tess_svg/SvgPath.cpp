@@ -9,10 +9,13 @@
 #include "tess_svg/GlDefs.h"
 #include "util_helpers.h"
 
+#include <math.h>
+
 #include <array>
 #include <cstddef>
 #include <iterator>
 #include <regex>
+#include <string>
 
 const SvgPath::transform_funcs SvgPath::transforms = {
   SvgPath::func_holder("translate(",

@@ -4,12 +4,9 @@
 #include "engine/my_math.h"
 #include "tess_svg/GlDefs.h"
 
-#include <GL/gl.h>
-
-#include <math.h>
+#include <math.h> //NOLINT
 
 #include <algorithm>
-#include <array>
 #include <charconv>
 #include <cmath>
 #include <cstddef>

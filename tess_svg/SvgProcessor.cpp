@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <iostream>
+#include <string>
 #include <utility>
 
 SvgProcessor::SvgProcessor(std::istream &src) :

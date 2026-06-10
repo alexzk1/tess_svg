@@ -9,6 +9,7 @@
 #include <pugixml.hpp>
 
 #include <functional>
+#include <string>
 
 /// @brief Node element parser prototype.
 /// @param nodeToParse source node we try to parse.
@@ -49,3 +50,31 @@ Loops parseLine(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTrans
 /// @note Current class Tesselate will treat node as closed polyline no matter of input.
 Loops parsePolygon(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTransform);
 } // namespace SvgParsers
+
+/// @brief Tries to find valid node parser and allows to apply it to node.
+class NodeParser
+{
+  public:
+    explicit NodeParser(const pugi::xml_node &node);
+
+    /// @brief Checks if this node type is supported.
+    /// @return true if this node is supported by parsers.
+    [[nodiscard]]
+    bool isSupported() const;
+
+    /// @brief Provides access to XML/Svg node name for caching and proper case purposes.
+    /// @return Reference to lowercased XML/Svg node name.
+    [[nodiscard]]
+    const std::string &nodeName() const;
+
+    /// @brief Applies parser to the node with @p parentTransform.
+    /// @return Loops for tesselator.
+    /// @throws if this->isSupported() would return false.
+    [[nodiscard]]
+    Loops parse(const GlVertex::trans_matrix_t &parentTransform) const;
+
+  protected:
+    const pugi::xml_node &node;
+    std::string nodeName_;
+    ShapeParser parser;
+};

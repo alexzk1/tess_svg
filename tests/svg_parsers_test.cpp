@@ -4,7 +4,9 @@
 #include "tess_svg/node_transform.hpp"
 
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
+#include <tuple>
 
 #include <gtest/gtest.h>
 
@@ -312,6 +314,199 @@ TEST_F(SvgParsersTest, PolylineIsOpen)
 
     ASSERT_EQ(loops.size(), 1);
     EXPECT_EQ(loops[0].size(), 3) << "Polyline should NOT be closed automatically";
+}
+
+TEST_F(SvgParsersTest, ParserRegistration)
+{
+    // Проверяем поддерживаемые теги
+    EXPECT_TRUE(NodeParser(doc.append_child("path")).isSupported());
+    EXPECT_TRUE(NodeParser(doc.append_child("rect")).isSupported());
+    EXPECT_TRUE(NodeParser(doc.append_child("circle")).isSupported());
+    EXPECT_TRUE(NodeParser(doc.append_child("ellipse")).isSupported());
+    EXPECT_TRUE(NodeParser(doc.append_child("line")).isSupported());
+    EXPECT_TRUE(NodeParser(doc.append_child("polygon")).isSupported());
+
+    // Проверяем неизвестный тег (твой кейс с "abrvalg")
+    EXPECT_FALSE(NodeParser(doc.append_child("abrvalg")).isSupported());
+}
+
+TEST_F(SvgParsersTest, NodeNameConsistency)
+{
+    auto node = doc.append_child("Path"); // Проверка регистра (должен быть lowercase)
+    const NodeParser parser(node);
+    EXPECT_EQ(parser.nodeName(), "path");
+}
+
+TEST_F(SvgParsersTest, TransformApplicationFlow)
+{
+    auto group = doc.append_child("g");
+    group.append_attribute("transform") = "translate(100, 50)";
+
+    auto rectNode = group.append_child("rect");
+    rectNode.append_attribute("x") = "10";
+    rectNode.append_attribute("y") = "10";
+    rectNode.append_attribute("width") = "20";
+    rectNode.append_attribute("height") = "30";
+
+    // Создаем парсер для ребенка, который знает о родителе
+    const NodeParser parser(rectNode);
+    GlVertex::trans_matrix_t parentTrans = getParentTransform(group);
+
+    ASSERT_TRUE(parser.isSupported());
+    auto loops = parser.parse(parentTrans);
+
+    // Математика:
+    // Локальный rect (10, 10) -> после translate(100, 50) должен стать (110, 60)
+    ASSERT_EQ(loops.size(), 1);
+    EXPECT_NEAR(loops[0][0].x(), 110.0, 1e-4);
+    EXPECT_NEAR(loops[0][0].y(), 60.0, 1e-4);
+}
+
+TEST_F(SvgParsersTest, RectGeometry)
+{
+    auto node = doc.append_child("rect");
+    node.append_attribute("x") = "0";
+    node.append_attribute("y") = "0";
+    node.append_attribute("width") = "100";
+    node.append_attribute("height") = "50";
+
+    auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+
+    // Проверяем углы прямоугольника (4 точки)
+    EXPECT_EQ(loops[0].size(), 4);
+    EXPECT_NEAR(loops[0][0].x(), 0.0, 1e-5);
+    EXPECT_NEAR(loops[0][1].x(), 100.0, 1e-5); // Top Right
+    EXPECT_NEAR(loops[0][2].y(), 50.0, 1e-5);  // Bottom Right
+}
+
+TEST_F(SvgParsersTest, CircleGeometry)
+{
+    auto node = doc.append_child("circle");
+    node.append_attribute("cx") = "50";
+    node.append_attribute("cy") = "50";
+    node.append_attribute("r") = "10";
+
+    auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+    // Проверяем точку на оси X (cx + r) => 60
+    bool foundPointOnXAxis = false;
+    for (const auto &p : loops[0])
+    {
+        if (std::abs(p.x() - 60.0) < 1e-3 && std::abs(p.y() - 50.0) < 1e-3)
+        {
+            foundPointOnXAxis = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundPointOnXAxis);
+}
+
+TEST_F(SvgParsersTest, EllipseGeometry)
+{
+    auto node = doc.append_child("ellipse");
+    node.append_attribute("cx") = "50";
+    node.append_attribute("cy") = "50";
+    // Вытягиваем по X в 2 раза относительно Y (rx=20, ry=10)
+    node.append_attribute("rx") = "20";
+    node.append_attribute("ry") = "10";
+
+    const auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+
+    bool foundRightPoint = false; // Ожидаем (cx + rx, cy) => (70, 50)
+    bool foundTopPoint = false;   // Ожидка (cx, cy + ry) => (50, 60)
+
+    for (const auto &p : loops[0])
+    {
+        // Проверяем правую точку
+        if (std::abs(p.x() - 70.0) < 1e-3 && std::abs(p.y() - 50.0) < 1e-3)
+        {
+            foundRightPoint = true;
+        }
+        // Проверяем верхнюю точку
+        if (std::abs(p.x() - 50.0) < 1e-3 && std::abs(p.y() - 60.0) < 1e-3)
+        {
+            foundTopPoint = true;
+        }
+    }
+
+    EXPECT_TRUE(foundRightPoint) << "Failed to find the rightmost point of ellipse (cx+rx)";
+    EXPECT_TRUE(foundTopPoint) << "Failed to find the topmost point of ellipse (cy+ry)";
+}
+
+TEST_F(SvgParsersTest, EllipseTransformScale)
+{
+    // Проверяем эллипс под масштабом.
+    // При scale(2, 0.5) круг превращается в эллипс.
+    auto group = doc.append_child("g");
+    group.append_attribute("transform") = "scale(2, 0.5)";
+
+    auto node = group.append_child("circle"); // Берем круг и деформируем его
+    node.append_attribute("cx") = "10";
+    node.append_attribute("cy") = "10";
+    node.append_attribute("r") = "5";
+
+    const auto loops = NodeParser(node).parse(getParentTransform(group));
+    ASSERT_EQ(loops.size(), 1);
+
+    // Локально точка (cx+r, cy) это (15, 10)
+    // После scale(2, 0.5): x = 15 * 2 = 30, y = 10 * 0.5 = 5
+    bool foundPoint = false;
+    for (const auto &p : loops[0])
+    {
+        if (std::abs(p.x() - 30.0) < 1e-3 && std::abs(p.y() - 5.0) < 1e-3)
+        {
+            foundPoint = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundPoint);
+}
+
+TEST_F(SvgParsersTest, LineGeometry)
+{
+    auto node = doc.append_child("line");
+    node.append_attribute("x1") = "0";
+    node.append_attribute("y1") = "0";
+    node.append_attribute("x2") = "50";
+    node.append_attribute("y2") = "50";
+
+    auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+    EXPECT_EQ(loops[0].size(), 2);
+    EXPECT_NEAR(loops[0][0].x(), 0.0, 1e-5);
+    EXPECT_NEAR(loops[0][1].x(), 50.0, 1e-5);
+}
+
+TEST_F(SvgParsersTest, PolygonGeometry)
+{
+    auto node = doc.append_child("polygon");
+    node.append_attribute("points") = "0,0 20,0 10,20"; // Треугольник
+
+    auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+    EXPECT_EQ(loops[0].size(), 3 + 1);
+}
+
+TEST_F(SvgParsersTest, PolylineGeometry)
+{
+    auto node = doc.append_child("polyline");
+    node.append_attribute("points") = "0,0 20,0 10,20"; // Треугольник
+
+    auto loops = NodeParser(node).parse(GlVertex::getIdentity());
+    ASSERT_EQ(loops.size(), 1);
+    EXPECT_EQ(loops[0].size(), 3);
+}
+
+TEST_F(SvgParsersTest, UnsupportedTagThrows)
+{
+    auto node = doc.append_child("unknown_tag");
+    const NodeParser parser(node);
+
+    EXPECT_FALSE(parser.isSupported());
+    // Проверка того, что parse кидает исключение для неподдерживаемых тегов
+    EXPECT_THROW(std::ignore = parser.parse(GlVertex::getIdentity()), std::runtime_error);
 }
 
 } // namespace Test

@@ -54,30 +54,29 @@ void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(Bounde
 void SvgProcessor::parse(const pugi::xml_node &node, const pugi::xml_node &parent, Loops *loops,
                          Loops *total_loops_param)
 {
-    // todo: add more text nodes to tesselated
-
-    const std::string node_name(toLower(node.name()));
     GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
     updateTransform(parent, parentTrans);
+    const NodeParser parser(node);
 
-    if (node_name == "path")
+    if (parser.isSupported())
     {
-        auto a = SvgParsers::parsePath(node, parentTrans);
+        auto nodeLoops = parser.parse(parentTrans);
         if (loops != nullptr)
         {
             loops->clear();
-            *loops = a;
+            *loops = nodeLoops;
         }
 
         if (total_loops_param != nullptr)
         {
-            total_loops_param->insert(total_loops_param->end(), a.cbegin(), a.cend());
+            total_loops_param->insert(total_loops_param->end(), nodeLoops.cbegin(),
+                                      nodeLoops.cend());
         }
     }
     else
     {
         Loops total_loops;
-        const bool groupped = (node_name == "g");
+        const bool groupped = (parser.nodeName() == "g");
         const std::string id(node.attribute("id").as_string());
         if (groupped)
         {

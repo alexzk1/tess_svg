@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -57,7 +58,56 @@ Loops pointsToLoops(std::vector<GlVertex> pts, const GlVertex::trans_matrix_t &f
     return {std::move(pts)};
 }
 
+const auto &nodesRegistry()
+{
+    // Important! Keep new node names in LOWER case.
+    static const std::map<std::string, ShapeParser> reg = {
+      {"path", SvgParsers::parsePath},        {"rect", SvgParsers::parseRect},
+      {"circle", SvgParsers::parseCircle},    {"ellipse", SvgParsers::parseEllipse},
+      {"line", SvgParsers::parseLine},        {"polygon", SvgParsers::parsePolygon},
+      {"polyline", SvgParsers::parsePolygon},
+    };
+    return reg;
+}
+
+ShapeParser findParser(const std::string &lowerCasedNodeName)
+{
+    auto &reg = nodesRegistry();
+    const auto it = reg.find(lowerCasedNodeName);
+    if (it != reg.end())
+    {
+        return it->second;
+    }
+    return nullptr;
+}
+
 } // namespace
+
+NodeParser::NodeParser(const pugi::xml_node &node) :
+    node(node),
+    nodeName_(toLower(node.name())),
+    parser(findParser(nodeName_))
+{
+}
+
+bool NodeParser::isSupported() const
+{
+    return static_cast<bool>(parser);
+}
+
+const std::string &NodeParser::nodeName() const
+{
+    return nodeName_;
+}
+
+Loops NodeParser::parse(const GlVertex::trans_matrix_t &parentTransform) const
+{
+    if (!parser)
+    {
+        throw std::runtime_error("Node " + nodeName_ + " is not supported yet.");
+    }
+    return parser(node, parentTransform);
+}
 
 namespace SvgParsers {
 
@@ -65,6 +115,7 @@ namespace SvgParsers {
 Loops parsePath(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTransform)
 {
     throwIfWrongTag("path", node);
+    // Note, we took parameter as copy, so it is local copy change.
     updateTransform(node, parentTransform);
     return TagDParser::split(node.attribute("d").as_string(), parentTransform);
 }
@@ -73,7 +124,7 @@ Loops parsePath(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTrans
 Loops parseRect(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTransform)
 {
     throwIfWrongTag("rect", node);
-    updateTransform(node, parentTransform); // Накапливаем локальный трансформ
+    updateTransform(node, parentTransform);
 
     const auto x = node.attribute("x").as_float();
     const auto y = node.attribute("y").as_float();

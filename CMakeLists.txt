@@ -25,9 +25,8 @@ endif()
 find_package(SFML)
 
 # 1. Список исходных файлов
-set(SOURCES_NO_MAIN
-    tess_svg/Bounds.cpp tess_svg/idumper.cpp tess_svg/SvgPath.cpp
-    tess_svg/SvgProcessor.cpp tess_svg/tagdparser.cpp tess_svg/Tesselate.cpp)
+file(GLOB_RECURSE SOURCES_NO_MAIN CONFIGURE_DEPENDS tess_svg/*.h tess_svg/*.hpp
+     tess_svg/*.cpp)
 
 set(SOURCES main.cpp ${SOURCES_NO_MAIN})
 

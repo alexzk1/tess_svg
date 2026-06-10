@@ -1,6 +1,6 @@
 #include "pugixml.hpp"
 #include "tess_svg/GlDefs.h"
-#include "tess_svg/SvgPath.h"
+#include "tess_svg/SvgParsers.h"
 #include "tess_svg/node_transform.hpp"
 
 #include <string>

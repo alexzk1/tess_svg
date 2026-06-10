@@ -5,7 +5,7 @@
 #include "SvgProcessor.h"
 
 #include "tess_svg/GlDefs.h"
-#include "tess_svg/SvgPath.h"
+#include "tess_svg/SvgParsers.h"
 #include "util_helpers.h"
 
 #include <functional>

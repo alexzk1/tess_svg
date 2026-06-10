@@ -7,7 +7,7 @@
 
 #include "Bounds.h"
 #include "GlDefs.h"
-#include "SvgPath.h"
+#include "SvgParsers.h"
 #include "Tesselate.h"
 #include "pugixml.hpp"
 

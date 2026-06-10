@@ -2,7 +2,7 @@
 // Created by alex on 7/15/15.
 //
 
-#include "SvgPath.h"
+#include "SvgParsers.h"
 
 #include "node_transform.hpp"
 #include "tagdparser.h"

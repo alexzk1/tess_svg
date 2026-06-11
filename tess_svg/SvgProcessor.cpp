@@ -9,7 +9,6 @@
 #include "tess_svg/node_transform.hpp"
 
 #include <cstddef>
-#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -47,14 +46,6 @@ void SvgProcessor::parse_svg_file(std::istream &src)
 const SvgProcessor::group_t &SvgProcessor::getTesselated() const
 {
     return tesselated;
-}
-
-void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(BoundedGroup &)> &func)
-{
-    for (auto &v : tesselated)
-    {
-        func(v.second);
-    }
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)

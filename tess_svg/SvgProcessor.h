@@ -5,15 +5,12 @@
 #ifndef TESSVG_SVGPROCESSOR_H
 #define TESSVG_SVGPROCESSOR_H
 
-#include "Bounds.h"
 #include "GlDefs.h"
 #include "SvgParsers.h"
 #include "Tesselate.h"
 #include "pugixml.hpp"
 
-#include <algorithm>
 #include <cstddef>
-#include <functional>
 #include <istream>
 #include <map>
 #include <stdexcept>
@@ -70,7 +67,6 @@ class SvgProcessor
     void parse_svg_file(std::istream &src);
     [[nodiscard]]
     const group_t &getTesselated() const;
-    void postProcessTesselatedVerteces(const std::function<void(BoundedGroup &)> &func);
 };
 
 #endif // TESSVG_SVGPROCESSOR_H

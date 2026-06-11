@@ -10,7 +10,7 @@ It’s perfect for generating collision hitboxes, navmesh data, or static vertex
 
 # 🚀 Key Features
 
-  -  Format Agnostic: Export to JSON (packed or pretty), Lua, Java, or C++ (SFML-compatible).
+  -  Format Agnostic: Export to JSON (packed or pretty) or Lua.
 
   -  Bezier Rasterization: Granular control over curve smoothness via --bparts.
 

@@ -9,13 +9,13 @@
 #include "tess_svg/GlDefs.h"
 #include "util_helpers.h"
 
-#include <math.h> //NOLINT
 #include <pugixml.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <map>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -44,7 +44,7 @@ void generateEllipsePoints(Vertexes &pts, float cx, float cy, float rx, float ry
     const int segments = static_cast<int>(std::max(static_cast<size_t>(1), ELLIPSE_POINTS));
     for (int i = 0; i < segments; ++i)
     {
-        const double theta = 2.0 * M_PI * i / segments;
+        const double theta = 2.0 * std::numbers::pi * i / segments;
         pts.emplace_back(cx + rx * std::cos(theta), cy + ry * std::sin(theta));
     }
 }

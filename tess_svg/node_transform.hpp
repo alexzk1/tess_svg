@@ -3,13 +3,13 @@
 #include "GlDefs.h"
 #include "engine/my_math.h"
 
-#include <math.h> //NOLINT
 #include <pugixml.hpp>
 
 #include <array>
 #include <cstddef>
 #include <functional>
 #include <iterator>
+#include <numbers>
 #include <regex>
 #include <string>
 #include <utility>
@@ -116,7 +116,7 @@ inline const auto &getTransformParsers()
                       }
 
                       // В SVG углы в градусах, а sin/cos в радианах
-                      const double angle = std::stod(*b++) * (M_PI / 180.0); // NOLINT
+                      const double angle = std::stod(*b++) * (std::numbers::pi / 180.0); // NOLINT
 
                       GlVertex::trans_matrix_t temp = GlVertex::getIdentity();
                       const auto sc = mymath::sincos(angle);

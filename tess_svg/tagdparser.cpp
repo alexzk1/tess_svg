@@ -4,13 +4,12 @@
 #include "engine/my_math.h"
 #include "tess_svg/GlDefs.h"
 
-#include <math.h> //NOLINT
-
 #include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <numbers>
 #include <optional>
 #include <regex>
 #include <stdexcept>
@@ -139,7 +138,7 @@ void ellipseArc(const GlVertex &start, double rx, double ry, double xAxisRotatio
 
     rx = std::abs(rx);
     ry = std::abs(ry);
-    const double phi = xAxisRotation * M_PI / 180.0;
+    const double phi = xAxisRotation * std::numbers::pi / 180.0;
     const auto sinCosPhi = mymath::sincos(phi);
 
     // 2. Вычисляем промежуточные значения (магия SVG Spec)
@@ -187,17 +186,17 @@ void ellipseArc(const GlVertex &start, double rx, double ry, double xAxisRotatio
       angleBetween((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
     if (!sweepFlag && deltaAngle > 0)
     {
-        deltaAngle -= 2 * M_PI;
+        deltaAngle -= 2 * std::numbers::pi;
     }
     if (sweepFlag && deltaAngle < 0)
     {
-        deltaAngle += 2 * M_PI;
+        deltaAngle += 2 * std::numbers::pi;
     }
 
     // 6. Тесселяция (создаем точки)
     // Используем ELLIPSE_POINTS для точности
-    const auto segments =
-      std::max<int>(1, static_cast<int>(std::abs(deltaAngle) / (2 * M_PI) * ELLIPSE_POINTS));
+    const auto segments = std::max<int>(
+      1, static_cast<int>(std::abs(deltaAngle) / (2 * std::numbers::pi) * ELLIPSE_POINTS));
     for (int i = 1; i <= segments; ++i)
     {
         const double theta = startAngle + deltaAngle * static_cast<double>(i) / segments;

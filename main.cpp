@@ -21,7 +21,6 @@
 
 extern float BEIZER_FLATNESS;
 extern std::size_t ELLIPSE_POINTS;
-extern bool USE_PATH_COMMENT;
 
 int main(const int ac, const char **av)
 {
@@ -46,16 +45,14 @@ int main(const int ac, const char **av)
             ("epoints", value<int>()->default_value(1024),
              "amount of points on ellipse to use on rasterize")
 
-              ("nocomment",
-               "if set disables commenting out of separated generated pathes in case of grouping")
-
           // should be same options as below in map keys
-          ("java,j", "output as Java")("json,J", "output as JSON (packed)")(
-            "prettyjson,P", "output as pretty JSON")(
-            "sfml,s", "output as C++ declaration (initializer list), sfml based(sf_polygon.h).")(
-            "sfmlmap,S", "output as C++ declaration in form of std::map (initializer list), sfml "
-                         "based(sf_polygon.h).")("lua,l", "output as Lua with local variables")(
-            "lua-no-local,L", "output as Lua without local variables");
+          ("json,J", "output as JSON (packed)")
+
+            ("prettyjson,P", "output as pretty JSON")
+
+              ("lua,l", "output as Lua with local variables")
+
+                ("lua-no-local,L", "output as Lua without local variables");
 
         variables_map vm;
         bool error_opts = false;
@@ -69,7 +66,6 @@ int main(const int ac, const char **av)
             notify(vm);
             BEIZER_FLATNESS = vm["bflatness"].as<float>();
             ELLIPSE_POINTS = vm["epoints"].as<int>();
-            USE_PATH_COMMENT = !vm.count("nocomment");
         }
         catch (...)
         {
@@ -111,10 +107,6 @@ int main(const int ac, const char **av)
         SvgProcessor test(sptr);
         const std::map<std::string, std::function<IDumperPtr()>> factories = {
           // should be same "options" as above in menu
-          {"java",
-           [&] {
-               return dumperFactory<JavaDumper>(optr, test, prefix);
-           }},
           {"json",
            [&] {
                return dumperFactory<JsonDumper>(optr, test, prefix, false);
@@ -122,14 +114,6 @@ int main(const int ac, const char **av)
           {"prettyjson",
            [&] {
                return dumperFactory<JsonDumper>(optr, test, prefix, true);
-           }},
-          {"sfml",
-           [&] {
-               return dumperFactory<SFMLDumper>(optr, test, prefix);
-           }},
-          {"sfmlmap",
-           [&] {
-               return dumperFactory<SFMLMapDumper>(optr, test, prefix);
            }},
           {"lua",
            [&] {

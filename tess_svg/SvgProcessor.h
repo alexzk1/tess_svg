@@ -32,55 +32,9 @@ class xmlerror : public std::runtime_error
 
 class SvgProcessor
 {
-  protected:
-    struct WithBounds
-    {
-        virtual ~WithBounds();
-        void makeBounds()
-        {
-            bounds.reset();
-
-            // Need to clean vertexes, model cannot have 2 same points 1 by 1.
-            if (vertexes.size() > 2)
-            {
-                const auto it =
-                  std::unique(vertexes.begin(), vertexes.end(), [](const auto &a, const auto &b) {
-                      return a == b;
-                  });
-                vertexes.erase(it, vertexes.end());
-                if (vertexes.size() < 3)
-                {
-                    throw std::runtime_error("Lost too many points doing cleanse of the sames.");
-                }
-            }
-            updateBounds();
-        }
-
-        WithBounds() = default;
-        WithBounds(const WithBounds &) = default;
-        WithBounds &operator=(const WithBounds &) = default;
-
-        WithBounds(WithBounds &&) = default;
-        WithBounds &operator=(WithBounds &&) = default;
-
-      public:
-        GlBounds bounds;
-        Vertexes vertexes;
-
-      protected:
-        virtual void updateBounds()
-        {
-            for (auto &v : vertexes)
-            {
-                bounds.add_point(v.x(), v.y());
-            }
-        }
-    };
-
   public:
-    struct TessResult : public WithBounds
+    struct TessResult
     {
-        std::map<std::string, std::string> attributes;
         void setAttributes(const pugi::xml_node &node)
         {
             attributes.clear();
@@ -90,36 +44,14 @@ class SvgProcessor
                 attributes[std::string(attr->name())] = std::string(attr->as_string());
             }
         }
+        std::map<std::string, std::string> attributes;
+        Vertexes vertexes;
     };
 
-    using pathes_t = std::vector<std::pair<std::string, TessResult>>;
-
-    struct BoundedGroup : public WithBounds
+    struct BoundedGroup
     {
-
+        using pathes_t = std::vector<std::pair<std::string, TessResult>>;
         pathes_t pathes;
-
-      protected:
-        void updateBounds() override
-        {
-            // 1. Сначала просим детей обновить их границы
-            for (auto &p : pathes)
-            {
-                p.second.makeBounds();
-            }
-
-            // 2. Сбрасываем старые границы группы
-            bounds.reset();
-
-            // 3. Добавляем в границы группы точки из её собственного vertexes (если они есть)
-            WithBounds::updateBounds();
-            // 4. ГЛАВНОЕ: Расширяем границы группы границами всех вложенных путей
-            for (auto &p : pathes)
-            {
-                bounds.add_point(p.second.bounds.xmin, p.second.bounds.ymin);
-                bounds.add_point(p.second.bounds.xmax, p.second.bounds.ymax);
-            }
-        }
     };
 
     using group_t = std::vector<std::pair<std::string, BoundedGroup>>;

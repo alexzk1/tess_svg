@@ -38,25 +38,16 @@ if(UNIX AND NOT APPLE)
   find_library(GLU_LIBRARY NAMES GLU GLU32)
 endif()
 
-# 1. Список исходных файлов
 file(GLOB_RECURSE SOURCES_NO_MAIN CONFIGURE_DEPENDS tess_svg/*.h tess_svg/*.hpp
      tess_svg/*.cpp)
 
 set(SOURCES main.cpp ${SOURCES_NO_MAIN})
-
-# 1. Создание исполняемого файла
-find_package(SFML)
 add_executable(${PROJECT_NAME} ${SOURCES})
-if(NOT SFML_FOUND)
-  target_compile_definitions(${PROJECT_NAME} PRIVATE NO_SFML)
-endif()
 
-# 1. Инклюды
 target_include_directories(
   ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${Boost_INCLUDE_DIRS}
                           ${X11_INCLUDE_DIR})
 
-# 1. Флаги компиляции (Общие)
 target_compile_options(
   ${PROJECT_NAME}
   PRIVATE -Wall
@@ -70,7 +61,6 @@ target_compile_options(
           -Werror=strict-aliasing
           -Wstrict-aliasing=2)
 
-# 1. Специфичные настройки для Debug и Release
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   message(STATUS "Building the RELEASE Version")
   target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
@@ -97,7 +87,6 @@ else()
   message(FATAL_ERROR "GLU library not found! It's needed for tessellation.")
 endif()
 
-# 1. Линковка библиотек
 target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE Threads::Threads
@@ -181,24 +170,15 @@ if(BUILD_TESTS)
               -Werror=strict-aliasing
               -Wstrict-aliasing=2)
 
-    if(NOT SFML_FOUND)
-      target_compile_definitions(tess_svg_tests PRIVATE NO_SFML)
-      target_link_libraries(
-        tess_svg_tests
-        PRIVATE GTest::gtest_main pugixml::pugixml Threads::Threads
-                ${GLU_LIBRARY} OpenGL::GL nlohmann_json::nlohmann_json)
-    else()
-      # Should we link SFML if found?
-      target_link_libraries(
-        tess_svg_tests
-        PRIVATE GTest::gtest_main
-                pugixml::pugixml
-                Threads::Threads
-                Clipper2
-                ${GLU_LIBRARY}
-                OpenGL::GL
-                nlohmann_json::nlohmann_json)
-    endif()
+    target_link_libraries(
+      tess_svg_tests
+      PRIVATE GTest::gtest_main
+              pugixml::pugixml
+              Threads::Threads
+              Clipper2
+              ${GLU_LIBRARY}
+              OpenGL::GL
+              nlohmann_json::nlohmann_json)
 
     target_include_directories(
       tess_svg_tests PUBLIC ${CMAKE_CURRENT_LIST_DIR}/tests/

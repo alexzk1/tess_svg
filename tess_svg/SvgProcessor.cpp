@@ -54,7 +54,6 @@ void SvgProcessor::postProcessTesselatedVerteces(const std::function<void(Bounde
     for (auto &v : tesselated)
     {
         func(v.second);
-        v.second.makeBounds();
     }
 }
 
@@ -76,10 +75,11 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
     else
     {
         const bool groupped = (parser.nodeName() == "g");
-        const std::string id(node.attribute("id").as_string());
+        const std::string parentId(node.attribute("id").as_string());
         if (groupped)
         {
-            tesselated.emplace_back(std::make_pair(id, BoundedGroup()));
+            // Result will have group with multiply results.
+            tesselated.emplace_back(std::make_pair(parentId, BoundedGroup()));
         }
 
         RecursionParameters childrenParams{params.parentTrans};
@@ -93,47 +93,24 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
 
             if (childrenParams.singleNodeLoops.size() > 0)
             {
-                const auto childNodeId = childNode.attribute("id").as_string();
+                std::string childNodeId = childNode.attribute("id").as_string();
+                if (childNodeId.empty())
+                {
+                    childNodeId = childNode.name();
+                }
                 if (!groupped)
                 {
                     // <svg><rect/></svg> case.
+                    // Result will have 1 "group" which will have 1 element.
                     tesselated.emplace_back(std::make_pair(childNodeId, BoundedGroup()));
                 }
 
                 TessResult tess;
                 tess.setAttributes(childNode);
                 tess.vertexes = ts.process(childrenParams.singleNodeLoops, true);
-                tesselated.back().second.pathes.emplace_back(std::make_pair(childNodeId, tess));
-
-                if (!groupped)
-                {
-                    // <svg><rect/></svg> case.
-                    tesselated.back().second.vertexes = tess.vertexes;
-                    tesselated.back().second.makeBounds();
-                }
-            }
-        }
-
-        if (groupped)
-        {
-            // 1. Сначала заставляем всех детей посчитать свои границы
-            for (auto &p : tesselated.back().second.pathes)
-            {
-                p.second.makeBounds();
-            }
-
-            // 2. Считаем общие границы группы на основе границ детей
-            auto &currentGroup = tesselated.back().second;
-            currentGroup.bounds.reset();
-
-            for (auto &p : currentGroup.pathes)
-            {
-                // Добавляем углы границ ребенка в границы группы
-                currentGroup.bounds.add_point(p.second.bounds.xmin, p.second.bounds.ymin);
-                currentGroup.bounds.add_point(p.second.bounds.xmax, p.second.bounds.ymax);
+                tesselated.back().second.pathes.emplace_back(
+                  std::make_pair(childNodeId, std::move(tess)));
             }
         }
     }
 }
-
-SvgProcessor::WithBounds::~WithBounds() = default;

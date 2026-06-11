@@ -11,18 +11,14 @@
 #include <string>
 /* Includes - SFML */
 
+#include "engine/my_math.h"
+
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 
-#ifndef NO_SFML
-    #include <SFML/System/Vector2.hpp>
-#endif
-#include "engine/my_math.h"
-
 #include <array>
 
-#ifdef NO_SFML
 template <typename T>
 struct VStorage
 {
@@ -84,9 +80,6 @@ VStorage<T> operator+(const VStorage<T> &left, const VStorage<T> &right)
 {
     return VStorage<T>(left.x + right.x, left.y + right.y);
 }
-#else
-using VStorage = sf::Vector2<T>;
-#endif
 
 constexpr int FLOAT_PREC = 6;
 constexpr int DOUBLE_PREC = 12;
@@ -230,22 +223,6 @@ class Vector2
 };
 
 using Vector2f = Vector2<float, FLOAT_PREC>;
-
-#ifndef NO_SFML
-    #include <SFML/Graphics.hpp>
-
-    #include <vector>
-
-template <sf::PrimitiveType TPrimitive>
-struct VertexVector : public std::vector<sf::Vertex>, public sf::Drawable
-{
-    using std::vector<sf::Vertex>::vector;
-    inline void draw(sf::RenderTarget &mRenderTarget, sf::RenderStates mRenderStates) const override
-    {
-        mRenderTarget.draw(&this->operator[](0), this->size(), TPrimitive, mRenderStates);
-    }
-};
-#endif
 
 template <class T>
 T deg2rad(T deg)

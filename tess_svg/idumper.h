@@ -1,10 +1,11 @@
-#ifndef IDUMPER_H
-#define IDUMPER_H
+#pragma once
+
 #include "GlDefs.h"
 #include "SvgProcessor.h"
 
 #include <iostream>
-#include <vector>
+#include <memory>
+#include <string>
 
 class IDumper
 {
@@ -13,25 +14,17 @@ class IDumper
     const std::string namePrefix;
 
   public:
+    virtual ~IDumper();
     IDumper() = delete;
     IDumper(const IDumper &) = delete;
+    IDumper &operator=(const IDumper &) = delete;
+    IDumper(IDumper &&) = delete;
+    IDumper &operator=(IDumper &&) = delete;
 
     explicit IDumper(std::ostream &out, const SvgProcessor &pr, std::string namePrefix);
-    virtual ~IDumper();
 };
 
 using IDumperPtr = std::shared_ptr<IDumper>;
-
-class JavaDumper : public IDumper
-{
-  protected:
-    void dumpPath(const SvgProcessor::group_t &what) const;
-    void dumpVertexes(const Vertexes &what) const;
-
-  public:
-    explicit JavaDumper(std::ostream &out, const SvgProcessor &pr,
-                        const std::string &namePrefix = "");
-};
 
 class JsonDumper : public IDumper
 {
@@ -43,29 +36,6 @@ class JsonDumper : public IDumper
   public:
     explicit JsonDumper(std::ostream &out, const SvgProcessor &pr,
                         const std::string &namePrefix = "", bool pretty = true);
-};
-
-class SFMLDumper : public IDumper
-{
-  protected:
-    void dumpPath(const SvgProcessor::group_t &what) const;
-    void dumpVertexes(const Vertexes &what) const;
-    explicit SFMLDumper(int inherited, std::ostream &out, const SvgProcessor &pr,
-                        const std::string &namePrefix = "");
-
-  public:
-    explicit SFMLDumper(std::ostream &out, const SvgProcessor &pr,
-                        const std::string &namePrefix = "");
-};
-
-class SFMLMapDumper : public SFMLDumper
-{
-  protected:
-    void dumpPath(const SvgProcessor::group_t &what) const;
-
-  public:
-    explicit SFMLMapDumper(std::ostream &out, const SvgProcessor &pr,
-                           const std::string &namePrefix = "");
 };
 
 class LuaDumper : public IDumper
@@ -86,4 +56,3 @@ IDumperPtr dumperFactory(std::ostream &out, const SvgProcessor &pr, std::string 
 {
     return std::make_shared<T>(out, pr, namePrefix, args...);
 }
-#endif // IDUMPER_H

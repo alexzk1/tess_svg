@@ -13,8 +13,6 @@
 #include <string>
 #include <utility>
 
-bool USE_PATH_COMMENT = true;
-
 namespace {
 [[nodiscard]]
 std::string fixClassName(std::string cname, bool force_upper_first)
@@ -57,83 +55,10 @@ IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix
 IDumper::~IDumper() = default;
 
 //************************************************************************************************************************************************************
-void JavaDumper::dumpPath(const SvgProcessor::group_t &what) const
-{
-    using namespace std;
-
-    // java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix, true);
-
-    outstr << "class " << ((cname.empty()) ? "Default" : cname) << " {" << endl;
-    for (const auto &g : what)
-    {
-        const bool morethan1 = g.second.pathes.size() > 1;
-
-        if (morethan1)
-        {
-            auto center = g.second.bounds.get_center();
-            outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << "public ModelPolygon group_" << g.first << " = new ModelPolygon(";
-            dumpVertexes(g.second.vertexes);
-            outstr << ").setOrigin(" << std::setprecision(4) << center.x() << "f,"
-                   << std::setprecision(4) << center.y() << "f);" << endl
-                   << endl;
-            outstr << "//end-of-group: " << g.first << std::endl;
-            outstr << "//Now each path separated if you need it: " << std::endl;
-            if (USE_PATH_COMMENT)
-            {
-                outstr << "/*" << std::endl;
-            }
-        }
-        for (const auto &p : g.second.pathes)
-        {
-            auto &tess_result = p.second; // TessResult
-            auto center = tess_result.bounds.get_center();
-            outstr << "public ModelPolygon " << p.first << " = new ModelPolygon(";
-            dumpVertexes(tess_result.vertexes);
-            outstr << ").setOrigin(" << std::setprecision(4) << center.x() << "f,"
-                   << std::setprecision(4) << center.y() << "f);" << endl
-                   << endl;
-        }
-        if (morethan1 && USE_PATH_COMMENT)
-        {
-            outstr << "*/" << std::endl;
-        }
-    }
-    outstr << "};" << endl;
-}
-
-void JavaDumper::dumpVertexes(const Vertexes &what) const
-{
-    int cntr = 1;
-    outstr << "new float[]{";
-
-    for (const auto &v : what)
-    {
-        outstr << std::setprecision(4) << v.x() << "f, " << std::setprecision(4) << v.y() << "f, ";
-        if (++cntr % 6 == 0)
-        {
-            outstr << std::endl;
-        }
-    }
-    outstr << "}";
-}
-
-JavaDumper::JavaDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix) :
-    IDumper(out, pr, namePrefix)
-{
-    dumpPath(pr.getTesselated());
-}
-
-//************************************************************************************************************************************************************
 void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
     using namespace std;
     using namespace nlohmann;
-
-    const static auto out_point = [](const auto &point) {
-        return json{point.x(), point.y()};
-    };
 
     const auto out_vertex = [](const Vertexes &what) -> json {
         json vertex = json::array();
@@ -146,10 +71,8 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
     };
 
     const auto out_polygon = [&out_vertex](const auto &g) {
-        const auto center = g.second.bounds.get_center();
         json poly = json::object();
         poly["vertexes"] = out_vertex(g.second.vertexes);
-        poly["origin"] = out_point(center);
         return poly;
     };
 
@@ -165,8 +88,6 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
         if (g.second.pathes.size() > 1)
         {
             json group = json::object();
-            group["outline"] = out_polygon(g);
-
             json cont = json::object();
             for (const auto &p : g.second.pathes)
             {
@@ -186,7 +107,6 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 
     if (!namePrefix.empty())
     {
-        obj2["namespace"] = true;
         obj2[namePrefix] = object;
     }
 
@@ -214,195 +134,30 @@ JsonDumper::JsonDumper(std::ostream &out, const SvgProcessor &pr, const std::str
 }
 
 //************************************************************************************************************************************************************
-void SFMLDumper::dumpPath(const SvgProcessor::group_t &what) const
-{
-    using namespace std;
-
-    // java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix, false);
-
-    outstr << "#include \"sf_polygon.h\"" << endl << endl << endl;
-    outstr << "namespace " << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
-    for (const auto &g : what)
-    {
-        const bool morethan1 = g.second.pathes.size() > 1;
-
-        if (morethan1)
-        {
-            const auto name = "group_" + g.first;
-            auto center = g.second.bounds.get_center();
-            outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << "extern const SfPolygon " << name << "{";
-            dumpVertexes(g.second.vertexes);
-            outstr << "};" << endl
-                   << name << ".setOrigin(" << std::setprecision(4) << center.x() << ","
-                   << std::setprecision(4) << center.y() << ");" << endl
-                   << endl;
-            outstr << "//end-of-group: " << g.first << std::endl;
-            outstr << "//Now each path separated if you need it: " << std::endl;
-            if (USE_PATH_COMMENT)
-            {
-                outstr << "/*" << std::endl;
-            }
-        }
-        for (const auto &p : g.second.pathes)
-        {
-            auto &tess_result = p.second; // TessResult
-            auto center = tess_result.bounds.get_center();
-            outstr << "extern const SfPolygon " << p.first << "{";
-            dumpVertexes(tess_result.vertexes);
-            outstr << "};" << endl
-                   << p.first << ".setOrigin(" << std::setprecision(4) << center.x() << ","
-                   << std::setprecision(4) << center.y() << ");" << endl
-                   << endl;
-        }
-        if (morethan1 && USE_PATH_COMMENT)
-        {
-            outstr << "*/" << std::endl;
-        }
-    }
-    outstr << "};" << endl;
-}
-
-void SFMLDumper::dumpVertexes(const Vertexes &what) const
-{
-    int cntr = 1;
-
-    for (const auto &v : what)
-    {
-        outstr << std::setprecision(4) << v.x() << ", " << std::setprecision(4) << v.y() << ", ";
-        if (++cntr % 6 == 0)
-        {
-            outstr << std::endl;
-        }
-    }
-}
-
-SFMLDumper::SFMLDumper(int, std::ostream &out, const SvgProcessor &pr,
-                       const std::string &namePrefix) :
-    IDumper(out, pr, namePrefix)
-{
-}
-
-SFMLDumper::SFMLDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix) :
-    IDumper(out, pr, namePrefix)
-{
-    dumpPath(pr.getTesselated());
-}
-
-//************************************************************************************************************************************************************
-void SFMLMapDumper::dumpPath(const SvgProcessor::group_t &what) const
-{
-    using namespace std;
-
-    // java has rules about class names used...so lets fix it.
-    auto cname = fixClassName(namePrefix, false);
-
-    outstr << "#include <map>" << endl;
-    outstr << "#include <string>" << endl;
-    outstr << "#include \"sf_polygon.h\"" << endl << endl << endl;
-    outstr << "extern const std::map<std::string, SfPolygon> "
-           << ((cname.empty()) ? "sfml_default" : cname) << " {" << endl;
-    for (const auto &g : what)
-    {
-        const bool morethan1 = g.second.pathes.size() > 1;
-
-        if (morethan1)
-        {
-            const auto name = "group_" + g.first;
-            auto center = g.second.bounds.get_center();
-            outstr << "//group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << "{\"" << name << "\", {{";
-            dumpVertexes(g.second.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4)
-                   << center.y() << " }}," << endl
-                   << endl;
-            outstr << "//end-of-group: " << g.first << std::endl;
-            if (USE_PATH_COMMENT)
-            {
-                outstr << "//Now each path separated if you need it: " << std::endl;
-                outstr << "/*" << std::endl;
-            }
-        }
-
-        for (const auto &p : g.second.pathes)
-        {
-            auto &tess_result = p.second; // TessResult
-            auto center = tess_result.bounds.get_center();
-            outstr << "{\"" << p.first << "\", {{";
-            dumpVertexes(tess_result.vertexes);
-            outstr << "}, " << std::setprecision(4) << center.x() << "," << std::setprecision(4)
-                   << center.y() << " }}," << endl
-                   << endl;
-        }
-
-        if (morethan1 && USE_PATH_COMMENT)
-        {
-            outstr << "*/" << std::endl;
-        }
-    }
-    outstr << "};" << endl;
-}
-
-SFMLMapDumper::SFMLMapDumper(std::ostream &out, const SvgProcessor &pr,
-                             const std::string &namePrefix) :
-    SFMLDumper(1, out, pr, namePrefix)
-{
-    dumpPath(pr.getTesselated());
-}
-//---------------------------------------------------------------------------------------------------------------------------------
-
 void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
 {
-    using namespace std;
     auto cname = fixClassName(namePrefix, false);
     if (use_local)
     {
         outstr << "local ";
     }
-    outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << endl;
+    outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << std::endl;
     for (const auto &g : what)
     {
-        const bool morethan1 = g.second.pathes.size() > 1;
 
-        if (morethan1)
-        {
-            const auto name = "group_" + g.first;
-            auto center = g.second.bounds.get_center();
-            outstr << "--group: " << g.first << " (outer shape of the image)" << std::endl;
-            outstr << name << " = {" << std::endl << "vertexes = {";
-            dumpVertexes(g.second.vertexes);
-            outstr << "}," << std::endl
-                   << "origX = " << std::setprecision(4) << center.x() << "," << std::endl
-                   << "origY = " << std::setprecision(4) << center.y() << " }, " << endl
-                   << endl;
-            outstr << "--end-of-group: " << g.first << std::endl;
-            if (USE_PATH_COMMENT)
-            {
-                outstr << "--Now each path separated if you need it: " << std::endl;
-                outstr << "--[[" << std::endl;
-            }
-        }
+        const auto name = "group_" + g.first;
+        outstr << name << " = {" << std::endl;
 
         for (const auto &p : g.second.pathes)
         {
             auto &tess_result = p.second; // TessResult
-            auto center = tess_result.bounds.get_center();
             outstr << p.first << " = { " << std::endl << "vertexes = {";
-            ;
             dumpVertexes(tess_result.vertexes);
-            outstr << "}," << std::endl
-                   << "origX = " << std::setprecision(4) << center.x() << "," << std::endl
-                   << "origY = " << std::setprecision(4) << center.y() << " }, " << endl
-                   << endl;
+            outstr << "}," << std::endl;
         }
-
-        if (morethan1 && USE_PATH_COMMENT)
-        {
-            outstr << "--]]" << std::endl;
-        }
+        outstr << "}," << std::endl;
     }
-    outstr << "}" << endl;
+    outstr << "}" << std::endl;
 }
 
 void LuaDumper::dumpVertexes(const Vertexes &what) const

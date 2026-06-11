@@ -133,7 +133,7 @@ AllowShortLambdasOnASingleLine: None
 BitFieldColonSpacing: None
 
 SpacesInAngles: Never
-Standard: c++17
+Standard: c++20
 
 #clang-19
 #BreakFunctionDefinitionParameters: false

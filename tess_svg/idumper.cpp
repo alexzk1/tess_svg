@@ -56,7 +56,7 @@ IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix
 IDumper::~IDumper() = default;
 
 //************************************************************************************************************************************************************
-void JsonDumper::dumpPath(const SvgGroups &what) const
+void JsonDumper::dumpPath(const SvgWorld &what) const
 {
     using namespace std;
     using namespace nlohmann;
@@ -79,7 +79,7 @@ void JsonDumper::dumpPath(const SvgGroups &what) const
 
     json object = json::object();
 
-    for (const auto &g : what)
+    for (const auto &g : what.scene)
     {
         if (g.elements.empty())
         {
@@ -135,7 +135,7 @@ JsonDumper::JsonDumper(std::ostream &out, const SvgProcessor &pr, const std::str
 }
 
 //************************************************************************************************************************************************************
-void LuaDumper::dumpPath(const SvgGroups &what) const
+void LuaDumper::dumpPath(const SvgWorld &what) const
 {
     auto cname = fixClassName(namePrefix, false);
     if (use_local)
@@ -143,7 +143,7 @@ void LuaDumper::dumpPath(const SvgGroups &what) const
         outstr << "local ";
     }
     outstr << ((cname.empty()) ? "figure_default" : cname) << " = {" << std::endl;
-    for (const auto &g : what)
+    for (const auto &g : what.scene)
     {
 
         const auto name = "group_" + g.id();

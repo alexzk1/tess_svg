@@ -30,14 +30,14 @@ class SvgProcessor
     void parse(std::size_t recursionLevel, const pugi::xml_node &node, RecursionParameters &params);
 
     pugi::xml_document doc;
-    SvgGroups tesselated;
+    SvgWorld tesselated;
 
   public:
     SvgProcessor() = default;
     explicit SvgProcessor(std::istream &src);
     void parse_svg_file(std::istream &src);
     [[nodiscard]]
-    const SvgGroups &getTesselated() const;
+    const SvgWorld &getTesselated() const;
 };
 
 #endif // TESSVG_SVGPROCESSOR_H

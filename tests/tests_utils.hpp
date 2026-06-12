@@ -38,7 +38,7 @@ class TestUtils
     static double calculateTotalAreaFromProcessor(const SvgProcessor &processor)
     {
         double total_area = 0.0;
-        for (auto const &[group_id, group] : processor.getTesselated())
+        for (auto const &[group_id, group] : processor.getTesselated().scene)
         {
             for (const auto &tess : group)
             {

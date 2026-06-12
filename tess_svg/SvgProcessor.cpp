@@ -31,7 +31,7 @@ void SvgProcessor::parse_svg_file(std::istream &src)
 {
     using namespace pugi;
     using namespace std;
-    tesselated.clear();
+    tesselated.reset();
 
     auto res = doc.load(src);
     if (res.status != status_ok)
@@ -42,10 +42,10 @@ void SvgProcessor::parse_svg_file(std::istream &src)
 
     RecursionParameters initialParams{};
     parse(0u, doc.first_child(), initialParams);
-    finalizeGroupsContours(tesselated);
+    finalizeGroupsContours(tesselated.scene);
 }
 
-const SvgGroups &SvgProcessor::getTesselated() const
+const SvgWorld &SvgProcessor::getTesselated() const
 {
     return tesselated;
 }
@@ -72,7 +72,7 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
         if (groupped)
         {
             // Result will have group with multiply results.
-            tesselated.emplace_back(SvgGroup{parentId, {}});
+            tesselated.scene.emplace_back(SvgGroup{parentId, {}});
         }
 
         RecursionParameters childrenParams{params.parentTrans};
@@ -92,11 +92,11 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
                 {
                     // <svg><rect/></svg> case.
                     // Result will have 1 "group" which will have 1 element.
-                    tesselated.emplace_back(SvgGroup{tess.id(), {}});
+                    tesselated.scene.emplace_back(SvgGroup{tess.id(), {}});
                 }
 
                 tess.data = std::move(childrenParams.singleNodeLoops);
-                tesselated.back().elements.emplace_back(std::move(tess));
+                tesselated.scene.back().elements.emplace_back(std::move(tess));
             }
         }
     }

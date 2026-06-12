@@ -31,7 +31,7 @@ class JsonDumper : public IDumper
 {
   protected:
     const bool pretty;
-    void dumpPath(const SvgGroups &what) const;
+    void dumpPath(const SvgWorld &what) const;
     void dumpVertexes(const Vertexes &what) const;
 
   public:
@@ -42,7 +42,7 @@ class JsonDumper : public IDumper
 class LuaDumper : public IDumper
 {
   protected:
-    void dumpPath(const SvgGroups &what) const;
+    void dumpPath(const SvgWorld &what) const;
     void dumpVertexes(const Vertexes &what) const;
     const bool use_local;
 

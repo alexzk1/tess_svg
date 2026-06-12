@@ -100,7 +100,21 @@ struct SvgGroup
     ParsedSvgElements elements;
 };
 
-using SvgGroups = std::vector<SvgGroup>;
+/// @brief All SVG groups (single root element becomes 1 group with 1 element) and geometrical data
+/// from <defs>.
+struct SvgWorld
+{
+    /// @brief Scene geometrical objects translated to world space or final world space contour(s).
+    std::vector<SvgGroup> scene;
+    /// @brief <defs> geometrical objects.
+    ParsedSvgElements defs;
+
+    void reset()
+    {
+        scene.clear();
+        defs.clear();
+    }
+};
 
 /// @brief Makes final transformation of the groups and produces bounding polygon(s) in World
 /// coordinates.

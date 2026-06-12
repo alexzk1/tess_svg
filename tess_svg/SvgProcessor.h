@@ -6,7 +6,6 @@
 #define TESSVG_SVGPROCESSOR_H
 
 #include "SvgParsers.h"
-#include "Tesselate.h"
 #include "processing_data.hpp"
 #include "pugixml.hpp"
 
@@ -30,7 +29,6 @@ class SvgProcessor
     struct RecursionParameters;
     void parse(std::size_t recursionLevel, const pugi::xml_node &node, RecursionParameters &params);
 
-    Tesselate ts;
     pugi::xml_document doc;
     SvgGroups tesselated;
 

@@ -42,6 +42,7 @@ void SvgProcessor::parse_svg_file(std::istream &src)
 
     RecursionParameters initialParams{};
     parse(0u, doc.first_child(), initialParams);
+    finalizeGroups(tesselated);
 }
 
 const SvgGroups &SvgProcessor::getTesselated() const
@@ -94,7 +95,7 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
                     tesselated.emplace_back(SvgGroup{tess.id(), {}});
                 }
 
-                tess.data = ts.process(childrenParams.singleNodeLoops, true);
+                tess.data = std::move(childrenParams.singleNodeLoops);
                 tesselated.back().elements.emplace_back(std::move(tess));
             }
         }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GlDefs.h"
+#include "Tesselate.h"
 #include "util_helpers.h"
 
 #include <pugixml.hpp>
@@ -100,3 +101,22 @@ struct SvgGroup
 };
 
 using SvgGroups = std::vector<SvgGroup>;
+
+/// @brief Makes final transformation of the groups and produces bounding polygon(s) in World
+/// coordinates.
+inline void finalizeGroups(std::vector<SvgGroup> &groups)
+{
+    for (SvgGroup &g : groups)
+    {
+        for (auto &elem : g.elements)
+        {
+            if (auto *pd = std::get_if<Loops>(&elem.data))
+            {
+                Tesselate ts;
+                elem.data = ts.process(*pd, true);
+                continue;
+            }
+            throw std::runtime_error("Invalid input to finilazer.");
+        }
+    }
+}

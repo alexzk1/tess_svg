@@ -73,7 +73,7 @@ void JsonDumper::dumpPath(const SvgGroups &what) const
 
     const auto out_polygon = [&out_vertex](const auto &g) {
         json poly = json::object();
-        poly["vertexes"] = out_vertex(g.vertexes);
+        poly["vertexes"] = out_vertex(g.finalData());
         return poly;
     };
 
@@ -152,7 +152,7 @@ void LuaDumper::dumpPath(const SvgGroups &what) const
         for (const auto &tess_result : g.elements)
         {
             outstr << tess_result.id() << " = { " << std::endl << "vertexes = {";
-            dumpVertexes(tess_result.vertexes);
+            dumpVertexes(tess_result.finalData());
             outstr << "}," << std::endl;
         }
         outstr << "}," << std::endl;

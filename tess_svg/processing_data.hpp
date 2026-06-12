@@ -8,12 +8,17 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
 
 /// @brief Prepared SVG. Each element is converted into polygon and translated into World space.
 /// It is produced by SvgProcessor.
 struct ParsedSvgElement
 {
+    /// @brief Current data present in this object. Data changes when object flows through
+    /// processing chain.
+    using GeometricalData = std::variant<std::monostate, Loops, Vertexes>;
+
     /// @brief Attributes setter.
     /// Ensures all attribute names are lowercased.
     /// If it is missing ID then sets it to element name.
@@ -46,11 +51,37 @@ struct ParsedSvgElement
         throw std::runtime_error("Attribute `id` was not found.");
     }
 
+    [[nodiscard]]
+    bool isEmpty() const noexcept
+    {
+        return std::holds_alternative<std::monostate>(data);
+    }
+
+    /// @brief Checks if it is final resul data i.e. it is bounding polygon in World coordinates.
+    [[nodiscard]]
+    bool isFinal() const noexcept
+    {
+        return std::holds_alternative<Vertexes>(data);
+    }
+
+    /// @brief Access to final data if any.
+    /// @returns Reference to final data if any or to empty data container otherwise.
+    [[nodiscard]]
+    const Vertexes &finalData() const noexcept
+    {
+        static const Vertexes kNothing;
+        if (const auto *p = std::get_if<Vertexes>(&data))
+        {
+            return *p;
+        }
+        return kNothing;
+    }
+
     /// @brief name=value attributes from original element (`rect`, `path` etc.) in SVG.
     std::map<std::string, std::string> attributes;
 
-    /// @brief Final result representing bounding polygon of the element.
-    Vertexes vertexes;
+    /// @brief Current geometrical data of this object.
+    GeometricalData data{std::monostate{}};
 };
 
 using ParsedSvgElements = std::vector<ParsedSvgElement>;

@@ -45,7 +45,7 @@ class TestUtils
         {
             for (const auto &tess : group)
             {
-                total_area += calculatePolygonArea(tess.vertexes);
+                total_area += calculatePolygonArea(tess.finalData());
             }
         }
         return total_area;

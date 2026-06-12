@@ -42,7 +42,7 @@ void SvgProcessor::parse_svg_file(std::istream &src)
 
     RecursionParameters initialParams{};
     parse(0u, doc.first_child(), initialParams);
-    finalizeGroups(tesselated);
+    finalizeGroupsContours(tesselated);
 }
 
 const SvgGroups &SvgProcessor::getTesselated() const

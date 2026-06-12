@@ -46,7 +46,7 @@ void fixWindingOrderForPhysics(Vertexes &points)
 }
 } // namespace
 
-const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
+const Vertexes &Tesselate::process(const Loops &vertexes, TessMode mode)
 {
     std::shared_ptr<GLUtesselator> tess;
     Vertexes spareverts;
@@ -63,7 +63,8 @@ const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
     });
     gluTessNormal(tess.get(), 0, 0, 1);
     gluTessProperty(tess.get(), GLU_TESS_WINDING_RULE, GLU_TESS_WINDING_NONZERO);
-    gluTessProperty(tess.get(), GLU_TESS_BOUNDARY_ONLY, static_cast<int>(contourOnly));
+    gluTessProperty(tess.get(), GLU_TESS_BOUNDARY_ONLY,
+                    static_cast<int>(TessMode::Contours == mode));
 
     // must store shared_ptr on local variables, to ensure pointer will be valid till function ends
     auto l_vertex = to_glu_callback<GLU_TESS_VERTEX>([&](GLdouble *vertex) {
@@ -157,7 +158,7 @@ const Vertexes &Tesselate::process(const Loops &vertexes, bool contourOnly)
     tess.reset();
 
     // Если нам нужен только контур для физики, приводим его к CCW
-    if (contourOnly)
+    if (mode == TessMode::Contours)
     {
         fixWindingOrderForPhysics(tlist); // true для CCW
     }

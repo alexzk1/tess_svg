@@ -7,6 +7,16 @@
 
 #include "GlDefs.h"
 
+/**
+ * @brief Geomtry generation mode.
+ */
+enum class TessMode {
+    /// @brief Full triangulation.
+    Triangles,
+    /// @brief Contour only (for example collisions).
+    Contours,
+};
+
 class Tesselate
 {
   public:
@@ -14,7 +24,7 @@ class Tesselate
     Vertexes tlist;
 
   public:
-    const Vertexes &process(const Loops &vertexes, bool contourOnly);
+    const Vertexes &process(const Loops &vertexes, TessMode mode);
     [[nodiscard]]
     const Vertexes &getTesselated() const;
 };

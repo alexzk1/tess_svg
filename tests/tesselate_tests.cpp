@@ -2,6 +2,7 @@
 #include "tess_svg/SvgParsers.h"
 #include "tess_svg/Tesselate.h"
 #include "tess_svg/node_transform.hpp"
+#include "tests_utils.hpp"
 
 #include <pugixml.hpp>
 
@@ -13,31 +14,17 @@
 
 namespace Test {
 
-class TesselationIntegrationTest : public ::testing::Test
+// Структура параметров для теста
+struct TestParam
+{
+    TessMode mode;
+    std::string description; // Для понятных ошибок в консоли
+};
+
+class TesselationIntegrationTest : public ::testing::TestWithParam<TestParam>, public TestUtils
 {
   protected:
     pugi::xml_document doc;
-
-    // Хелпер для расчета площади всех треугольников в результате тесселяции
-    [[nodiscard]]
-    double calculateTotalArea(const Vertexes &result) const
-    {
-        double area = 0.0;
-        for (std::size_t i = 0; i < result.size(); i += 3)
-        {
-            if (i + 2 >= result.size())
-            {
-                break;
-            }
-            const auto &v1 = result[i];
-            const auto &v2 = result[i + 1];
-            const auto &v3 = result[i + 2];
-            area += std::abs(
-              (v1.x() * (v2.y() - v3.y()) + v2.x() * (v3.y() - v1.y()) + v3.x() * (v1.y() - v2.y()))
-              / 2.0);
-        }
-        return area;
-    }
 
     // Вспомогательная функция для создания матрицы Identity
     GlVertex::trans_matrix_t identity()
@@ -45,6 +32,37 @@ class TesselationIntegrationTest : public ::testing::Test
         return GlVertex::getIdentity();
     }
 };
+
+TEST_F(TesselationIntegrationTest, BoundaryClosureTest)
+{
+    Tesselate tess;
+    Loops loops;
+
+    // Квадрат (0,0) - (10,10)
+    const Vertexes shape = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    loops.push_back(shape);
+
+    // Режим контуров (Boundary Only)
+    const auto &result = tess.process(loops, TessMode::Contours);
+    ASSERT_GE(result.size(), 3);
+    EXPECT_EQ(result.size(), 4); // Ожидаем 4 вершины для квадрата
+}
+
+TEST_F(TesselationIntegrationTest, SelfIntersectingBoundaryTest)
+{
+    Tesselate tess;
+    Loops loops;
+    // Песочные часы
+    const Vertexes hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
+    loops.push_back(hourglass);
+
+    const auto &result = tess.process(loops, TessMode::Contours);
+
+    // Если GLU разрезал самопересечение, точек станет 6
+    // (две петли по 3 точки: верхний и нижний треугольники)
+    // Вместо исходных 4-х.
+    EXPECT_EQ(result.size(), 6);
+}
 
 TEST_F(TesselationIntegrationTest, HoleTest)
 {
@@ -60,7 +78,7 @@ TEST_F(TesselationIntegrationTest, HoleTest)
     loops.push_back(outer);
     loops.push_back(inner);
 
-    const auto &result = tess.process(loops, false);
+    const auto &result = tess.process(loops, TessMode::Triangles);
 
     // В простом квадрате без дырки было бы 2 треугольника (6 вершин)
     // С дыркой их должно быть значительно больше
@@ -82,7 +100,7 @@ TEST_F(TesselationIntegrationTest, HoleTest)
     EXPECT_NEAR(totalArea, 64.0, 1e-7);
 }
 
-TEST_F(TesselationIntegrationTest, SelfIntersectionTest)
+TEST_P(TesselationIntegrationTest, SelfIntersectionTest)
 {
     Tesselate tess;
     Loops loops;
@@ -95,12 +113,12 @@ TEST_F(TesselationIntegrationTest, SelfIntersectionTest)
 
     // Если l_combine работает, этот вызов не бросит исключение
     EXPECT_NO_THROW({
-        const auto &result = tess.process(loops, false);
+        const auto &result = tess.process(loops, GetParam().mode);
         EXPECT_FALSE(result.empty());
     });
 }
 
-TEST_F(TesselationIntegrationTest, DegenerateTest)
+TEST_P(TesselationIntegrationTest, DegenerateTest)
 {
     Tesselate tess;
     Loops loops;
@@ -110,54 +128,11 @@ TEST_F(TesselationIntegrationTest, DegenerateTest)
 
     // Ожидаем, что тесселятор просто не создаст треугольников (площадь 0),
     // но при этом не вылетит с ошибкой.
-    const auto &result = tess.process(loops, false);
+    const auto &result = tess.process(loops, GetParam().mode);
     EXPECT_TRUE(result.empty() || result.size() < 3);
 }
 
-TEST_F(TesselationIntegrationTest, BoundaryClosureTest)
-{
-    Tesselate tess;
-    Loops loops;
-
-    // Квадрат (0,0) - (10,10)
-    const Vertexes shape = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
-    loops.push_back(shape);
-
-    // Режим контуров (Boundary Only)
-    const auto &result = tess.process(loops, true);
-
-    // Для одного квадрата GLU должен вернуть те же 4 точки (или 5, если замыкает)
-    // Но в твоем коде l_vertex просто пушит точки в tlist.
-    // Если GL_LINE_LOOP отработал, tlist должен содержать последовательность.
-
-    ASSERT_GE(result.size(), 3);
-
-    // Проверяем "физическую" замкнутость:
-    // Если мы используем эти точки для EdgeChain,
-    // последняя точка должна позволять провести линию к первой.
-    // В случае с GLU_TESS_BOUNDARY_ONLY он выдает вершины контуров по очереди.
-
-    // Давай проверим, что результат не пустой и количество точек логично
-    EXPECT_EQ(result.size(), 4); // Ожидаем 4 вершины для квадрата
-}
-
-TEST_F(TesselationIntegrationTest, SelfIntersectingBoundaryTest)
-{
-    Tesselate tess;
-    Loops loops;
-    // Песочные часы
-    const Vertexes hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
-    loops.push_back(hourglass);
-
-    const auto &result = tess.process(loops, true);
-
-    // Если GLU разрезал самопересечение, точек станет 6
-    // (две петли по 3 точки: верхний и нижний треугольники)
-    // Вместо исходных 4-х.
-    EXPECT_EQ(result.size(), 6);
-}
-
-TEST_F(TesselationIntegrationTest, CompareParserVsManual)
+TEST_P(TesselationIntegrationTest, CompareParserVsManual)
 {
     // 1. Подготовка данных для "песочных часов" (самопересечение - сложный кейс)
     const std::string polygonCoords = "0,0 10,10 10,0 0,10";
@@ -166,8 +141,8 @@ TEST_F(TesselationIntegrationTest, CompareParserVsManual)
     const Vertexes hourglass_manual = {{0.0f, 0.0f}, {10.0f, 10.0f}, {10.0f, 0.0f}, {0.0f, 10.0f}};
 
     Tesselate tess;
-    auto result_manual = tess.process({hourglass_manual}, false);
-    const double area_manual = calculateTotalArea(result_manual);
+    auto result_manual = tess.process({hourglass_manual}, GetParam().mode);
+    const double area_manual = calculatePolygonArea(result_manual);
 
     // --- МЕТОД Б: Через SvgParsers (Parser-driven) ---
     auto node = doc.append_child("polygon");
@@ -177,8 +152,8 @@ TEST_F(TesselationIntegrationTest, CompareParserVsManual)
     ASSERT_NO_THROW({ parser_loops = SvgParsers::parsePolygon(node, identity()); })
       << "Parser failed to process valid polygon string";
 
-    auto result_parser = tess.process(parser_loops, false);
-    const double area_parser = calculateTotalArea(result_parser);
+    auto result_parser = tess.process(parser_loops, GetParam().mode);
+    const double area_parser = calculatePolygonArea(result_parser);
 
     // --- СРАВНЕНИЕ ---
 
@@ -196,7 +171,7 @@ TEST_F(TesselationIntegrationTest, CompareParserVsManual)
     EXPECT_GT(result_parser.size(), 0);
 }
 
-TEST_F(TesselationIntegrationTest, ParserWithTransform)
+TEST_P(TesselationIntegrationTest, ParserWithTransform)
 {
     auto group = doc.append_child("g");
     group.append_attribute("transform") = "translate(50, 50) scale(2, 1)"; // X*2 + 50, Y+50
@@ -210,7 +185,7 @@ TEST_F(TesselationIntegrationTest, ParserWithTransform)
 
     auto loops = SvgParsers::parsePolygon(node, parentTrans);
     Tesselate tess;
-    auto result = tess.process(loops, false);
+    auto result = tess.process(loops, GetParam().mode);
 
     // Точка (10,10) * Scale(2,1) + Trans(50,50) = 10 * 2 + 50; 10*1 + 50 = 70;60
     // Проверим последнюю точку треугольника/полигона
@@ -229,28 +204,25 @@ TEST_F(TesselationIntegrationTest, ParserWithTransform)
 
 // --- TEST FOR TESSELLATOR (The real check) ---
 
-TEST_F(TesselationIntegrationTest, OpenVsClosedAreaTest)
+TEST_P(TesselationIntegrationTest, OpenVsClosedAreaTest)
 {
-    // Тесселятор должен выдать площадь для замкнутого polygon и НОЛЬ для открытой polyline
-    // (потому что у open-линии нет площади/внутренности)
-
     Tesselate tess;
 
     // 1. Замкнутый полигон
     auto poly_node = doc.append_child("polygon");
     poly_node.append_attribute("points") = "0,0 10,0 10,10";
     const auto poly_loops = SvgParsers::parsePolygon(poly_node, GlVertex::getIdentity());
-    const auto res_poly = tess.process(poly_loops, false);
+    const auto res_poly = tess.process(poly_loops, GetParam().mode);
 
-    const double area_poly = calculateTotalArea(res_poly);
+    const double area_poly = calculatePolygonArea(res_poly);
 
     // 2. Открытая полилиния
     auto line_node = doc.append_child("polyline");
     line_node.append_attribute("points") = "0,0 10,0 10,10";
     const auto polyline_loops = SvgParsers::parsePolygon(line_node, GlVertex::getIdentity());
-    const auto res_polyLine = tess.process(polyline_loops, false);
+    const auto res_polyLine = tess.process(polyline_loops, GetParam().mode);
 
-    const double area_line = calculateTotalArea(res_polyLine);
+    const double area_line = calculatePolygonArea(res_polyLine);
 
     // Проверяем: полигон имеет площадь (50), а линия — нет (0), но тесселятор все равно должен
     // замнкуть.
@@ -258,4 +230,8 @@ TEST_F(TesselationIntegrationTest, OpenVsClosedAreaTest)
     EXPECT_NEAR(area_line, area_poly, 1e-4);
 }
 
+// NOLINTNEXTLINE
+INSTANTIATE_TEST_SUITE_P(TesselationAllModes, TesselationIntegrationTest,
+                         ::testing::Values(TestParam{TessMode::Triangles, "Full Triangulation"},
+                                           TestParam{TessMode::Contours, "Boundary Contours"}));
 } // namespace Test

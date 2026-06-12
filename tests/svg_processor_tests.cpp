@@ -43,7 +43,7 @@ class TestUtils
         double total_area = 0.0;
         for (auto const &[group_id, group] : processor.getTesselated())
         {
-            for (auto const &[path_id, tess] : group.pathes)
+            for (const auto &tess : group)
             {
                 total_area += calculatePolygonArea(tess.vertexes);
             }

@@ -2,6 +2,7 @@
 
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgProcessor.h"
+#include "tess_svg/processing_data.hpp"
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -55,7 +56,7 @@ IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix
 IDumper::~IDumper() = default;
 
 //************************************************************************************************************************************************************
-void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
+void JsonDumper::dumpPath(const SvgGroups &what) const
 {
     using namespace std;
     using namespace nlohmann;
@@ -72,7 +73,7 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 
     const auto out_polygon = [&out_vertex](const auto &g) {
         json poly = json::object();
-        poly["vertexes"] = out_vertex(g.second.vertexes);
+        poly["vertexes"] = out_vertex(g.vertexes);
         return poly;
     };
 
@@ -80,26 +81,26 @@ void JsonDumper::dumpPath(const SvgProcessor::group_t &what) const
 
     for (const auto &g : what)
     {
-        if (g.second.pathes.empty())
+        if (g.elements.empty())
         {
             continue;
         }
 
-        if (g.second.pathes.size() > 1)
+        if (g.elements.size() > 1)
         {
             json group = json::object();
             json cont = json::object();
-            for (const auto &p : g.second.pathes)
+            for (const auto &p : g.elements)
             {
-                cont[p.first] = out_polygon(p);
+                cont[p.id()] = out_polygon(p);
             }
             group["contains"] = cont;
-            object[g.first] = group;
+            object[g.id()] = group;
         }
         else
         {
-            const auto &p = g.second.pathes.at(0);
-            object[p.first] = out_polygon(p);
+            const auto &p = g.elements.at(0);
+            object[p.id()] = out_polygon(p);
         }
     }
 
@@ -134,7 +135,7 @@ JsonDumper::JsonDumper(std::ostream &out, const SvgProcessor &pr, const std::str
 }
 
 //************************************************************************************************************************************************************
-void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
+void LuaDumper::dumpPath(const SvgGroups &what) const
 {
     auto cname = fixClassName(namePrefix, false);
     if (use_local)
@@ -145,13 +146,12 @@ void LuaDumper::dumpPath(const SvgProcessor::group_t &what) const
     for (const auto &g : what)
     {
 
-        const auto name = "group_" + g.first;
+        const auto name = "group_" + g.id();
         outstr << name << " = {" << std::endl;
 
-        for (const auto &p : g.second.pathes)
+        for (const auto &tess_result : g.elements)
         {
-            auto &tess_result = p.second; // TessResult
-            outstr << p.first << " = { " << std::endl << "vertexes = {";
+            outstr << tess_result.id() << " = { " << std::endl << "vertexes = {";
             dumpVertexes(tess_result.vertexes);
             outstr << "}," << std::endl;
         }

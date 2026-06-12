@@ -7,6 +7,7 @@
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgParsers.h"
 #include "tess_svg/node_transform.hpp"
+#include "tess_svg/processing_data.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -43,7 +44,7 @@ void SvgProcessor::parse_svg_file(std::istream &src)
     parse(0u, doc.first_child(), initialParams);
 }
 
-const SvgProcessor::group_t &SvgProcessor::getTesselated() const
+const SvgGroups &SvgProcessor::getTesselated() const
 {
     return tesselated;
 }
@@ -70,7 +71,7 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
         if (groupped)
         {
             // Result will have group with multiply results.
-            tesselated.emplace_back(std::make_pair(parentId, BoundedGroup()));
+            tesselated.emplace_back(SvgGroup{parentId, {}});
         }
 
         RecursionParameters childrenParams{params.parentTrans};
@@ -84,23 +85,17 @@ void SvgProcessor::parse(std::size_t recursionLevel, const pugi::xml_node &node,
 
             if (childrenParams.singleNodeLoops.size() > 0)
             {
-                std::string childNodeId = childNode.attribute("id").as_string();
-                if (childNodeId.empty())
-                {
-                    childNodeId = childNode.name();
-                }
+                ParsedSvgElement tess;
+                tess.setAttributes(childNode);
                 if (!groupped)
                 {
                     // <svg><rect/></svg> case.
                     // Result will have 1 "group" which will have 1 element.
-                    tesselated.emplace_back(std::make_pair(childNodeId, BoundedGroup()));
+                    tesselated.emplace_back(SvgGroup{tess.id(), {}});
                 }
 
-                TessResult tess;
-                tess.setAttributes(childNode);
                 tess.vertexes = ts.process(childrenParams.singleNodeLoops, true);
-                tesselated.back().second.pathes.emplace_back(
-                  std::make_pair(childNodeId, std::move(tess)));
+                tesselated.back().elements.emplace_back(std::move(tess));
             }
         }
     }

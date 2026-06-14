@@ -6,7 +6,9 @@
 #include <numbers>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -206,6 +208,66 @@ TEST_F(SvgIntegrationTest, DeeplyNestedDefs)
 
     // Area: (pi * 25) * scale(2)^2 = pi * 100 approx 314.159
     EXPECT_NEAR(calculateTotalWorldArea(createWorldFromDefs(svg)), std::numbers::pi * 100.0, 1e-2);
+}
+
+TEST_F(SvgIntegrationTest, TransformerOrderAndExecution)
+{
+    // Подготовим данные для проверки
+    std::vector<int> call_order;
+    call_order.reserve(3u);
+
+    const auto transformer1 = [&](SvgWorld &) {
+        call_order.push_back(1);
+    };
+    const auto transformer2 = [&](SvgWorld &) {
+        call_order.push_back(2);
+    };
+    const auto transformer3 = [&](SvgWorld &) {
+        call_order.push_back(3);
+    };
+
+    std::stringstream ss("<svg/>");
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(transformer1)
+                    .addTransformer(transformer2)
+                    .addTransformer(transformer3)
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    ASSERT_EQ(call_order.size(), 3u);
+
+    EXPECT_EQ(call_order[0], 1);
+    EXPECT_EQ(call_order[1], 2);
+    EXPECT_EQ(call_order[2], 3);
+}
+
+TEST_F(SvgIntegrationTest, TransformerIdentity)
+{
+    auto scaleTransformer = [](SvgWorld &w) {
+        for (auto &group : w.scene)
+        {
+            for (auto &element : group.elements)
+            {
+                EXPECT_TRUE(!element.isEmpty());
+                EXPECT_EQ(element.id(), "rect");
+            }
+        }
+    };
+
+    bool called = false;
+    auto transformer = [&](SvgWorld &w) {
+        called = true;
+        ASSERT_FALSE(w.scene.empty());
+        w.scene[0].id_ += "_transformed"; // Модифицируем данные
+    };
+
+    std::stringstream ss("<svg><rect width='10' height='10'/></svg>");
+    const auto final = SvgWorldTransformers()
+                         .addTransformer(scaleTransformer)
+                         .addTransformer(transformer)
+                         .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(final.scene[0].id(), "rect_transformed"); // Проверяем результат модификации
 }
 
 } // namespace Test

@@ -8,9 +8,11 @@
 #include "processing_data.hpp"
 #include "pugixml.hpp"
 
+#include <functional>
 #include <istream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 class xmlerror : public std::runtime_error
 {
@@ -21,18 +23,22 @@ class xmlerror : public std::runtime_error
     }
 };
 
+/// @brief Single transactional transformation of the World.
+using SvgWorldTransformer = std::function<void(SvgWorld &)>;
+
 /// @brief Simple transformations (processing, like boolean intercections) chain builder.
 class SvgWorldTransformers
 {
   public:
     // TODO:
-    SvgWorldTransformers &addTransformer();
+    SvgWorldTransformers &addTransformer(SvgWorldTransformer trans);
 
     ///@brief Builds final surrounding polygon which is the result of this tool.
     [[nodiscard]]
     SvgWorld buildSurroundingPolygons(SvgWorld world);
 
   private:
+    std::vector<SvgWorldTransformer> transformers;
 };
 
 /// @brief Load SVG file/data for further processing, it does parsing of it like accounting nested

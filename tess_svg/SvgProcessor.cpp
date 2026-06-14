@@ -109,16 +109,22 @@ SvgWorld loadSvgWorld(std::istream &src)
     return world;
 }
 
-SvgWorldTransformers &SvgWorldTransformers::addTransformer()
+SvgWorldTransformers &SvgWorldTransformers::addTransformer(SvgWorldTransformer trans)
 {
-    // TODO:
-
+    transformers.emplace_back(std::move(trans));
     return *this;
 }
 
 SvgWorld SvgWorldTransformers::buildSurroundingPolygons(SvgWorld world)
 {
-    // TODO: Apply added transformers
+    for (const auto &trans : transformers)
+    {
+        if (trans)
+        {
+            trans(world);
+        }
+    }
+
     finalizeGroupsContours(world.scene);
     world.defs.clear(); // Note, it is a copy!
     return world;

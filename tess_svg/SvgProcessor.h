@@ -9,7 +9,6 @@
 #include "processing_data.hpp"
 #include "pugixml.hpp"
 
-#include <cstddef>
 #include <istream>
 #include <stdexcept>
 #include <string>
@@ -26,9 +25,6 @@ class xmlerror : public std::runtime_error
 class SvgProcessor
 {
   private:
-    struct RecursionParameters;
-    void parse(std::size_t recursionLevel, const pugi::xml_node &node, RecursionParameters &params);
-
     pugi::xml_document doc;
     SvgWorld tesselated;
 

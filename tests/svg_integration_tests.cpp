@@ -257,7 +257,7 @@ TEST_F(SvgIntegrationTest, TransformerIdentity)
     auto transformer = [&](SvgWorld &w) {
         called = true;
         ASSERT_FALSE(w.scene.empty());
-        w.scene[0].id_ += "_transformed"; // Модифицируем данные
+        w.scene[0].id_ += "_transformed";
     };
 
     std::stringstream ss("<svg><rect width='10' height='10'/></svg>");
@@ -267,7 +267,8 @@ TEST_F(SvgIntegrationTest, TransformerIdentity)
                          .buildSurroundingPolygons(loadSvgWorld(ss));
 
     EXPECT_TRUE(called);
-    EXPECT_EQ(final.scene[0].id(), "rect_transformed"); // Проверяем результат модификации
+    EXPECT_EQ(final.scene.front().id(), "rect_transformed");
+    EXPECT_TRUE(final.scene.front().elements.front().isFinal());
 }
 
 } // namespace Test

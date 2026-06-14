@@ -24,7 +24,7 @@ struct RecursionParameters
 };
 
 void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml_node &node,
-           RecursionParameters &params)
+                   RecursionParameters &params)
 {
     const NodeParser parser(node);
 
@@ -75,31 +75,36 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
 }
 } // namespace
 
-SvgProcessor::SvgProcessor(std::istream &src) :
-    doc()
+SvgWorld loadSvgWorld(std::istream &src)
 {
-    parse_svg_file(src);
-}
+    SvgWorld world;
+    pugi::xml_document doc;
 
-void SvgProcessor::parse_svg_file(std::istream &src)
-{
-    using namespace pugi;
-    using namespace std;
-    tesselated.reset();
-
-    auto res = doc.load(src);
-    if (res.status != status_ok)
+    auto svgTree = doc.load(src);
+    if (svgTree.status != pugi::status_ok)
     {
-        cerr << "Error parsing file, status: " << res.status << ": " << res.description() << endl;
-        throw xmlerror(res.description());
+        std::cerr << "Error parsing file, status: " << svgTree.status << ": "
+                  << svgTree.description() << std::endl;
+        throw xmlerror(svgTree.description());
     }
 
     RecursionParameters initialParams{};
-    parseSvgWorld(tesselated, 0u, doc.first_child(), initialParams);
-    finalizeGroupsContours(tesselated.scene);
+    parseSvgWorld(world, 0u, doc.first_child(), initialParams);
+
+    return world;
 }
 
-const SvgWorld &SvgProcessor::getTesselated() const
+SvgWorldTransformers &SvgWorldTransformers::addTransformer()
 {
-    return tesselated;
+    // TODO:
+
+    return *this;
+}
+
+SvgWorld SvgWorldTransformers::buildSurroundingPolygons(SvgWorld world)
+{
+    // TODO: Apply added transformers
+    finalizeGroupsContours(world.scene);
+    world.defs.clear(); // Note, it is a copy!
+    return world;
 }

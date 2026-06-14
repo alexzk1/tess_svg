@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tess_svg/GlDefs.h"
-#include "tess_svg/SvgProcessor.h"
+#include "tess_svg/processing_data.hpp"
 
 #include <cstddef>
 #include <cstdlib>
@@ -35,10 +35,10 @@ class TestUtils
         return std::abs(area) / 2.0;
     }
 
-    static double calculateTotalAreaFromProcessor(const SvgProcessor &processor)
+    static double calculateTotalAreaFromProcessor(const SvgWorld &world)
     {
         double total_area = 0.0;
-        for (auto const &[group_id, group] : processor.getTesselated().scene)
+        for (auto const &[group_id, group] : world.scene)
         {
             for (const auto &tess : group)
             {

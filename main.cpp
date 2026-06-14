@@ -1,5 +1,6 @@
 #include "tess_svg/SvgProcessor.h"
 #include "tess_svg/idumper.h"
+#include "tess_svg/processing_data.hpp"
 
 #include <boost/filesystem.hpp> //NOLINT
 #include <boost/filesystem/path.hpp>
@@ -104,7 +105,9 @@ int main(const int ac, const char **av)
         }
         std::ostream &optr = (fn.empty()) ? std::cout : out;
 
-        SvgProcessor test(sptr);
+        SvgWorldTransformers transBuilder;
+        // TODO: add more optional transformers.
+        const SvgWorld test(transBuilder.buildSurroundingPolygons(loadSvgWorld(sptr)));
         const std::map<std::string, std::function<IDumperPtr()>> factories = {
           // should be same "options" as above in menu
           {"json",

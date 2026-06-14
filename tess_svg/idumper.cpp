@@ -47,7 +47,7 @@ std::string fixClassName(std::string cname, bool force_upper_first)
 }
 } // namespace
 
-IDumper::IDumper(std::ostream &out, const SvgProcessor &, std::string namePrefix) :
+IDumper::IDumper(std::ostream &out, const SvgWorld &, std::string namePrefix) :
     outstr(out),
     namePrefix(std::move(namePrefix))
 {
@@ -126,12 +126,12 @@ void JsonDumper::dumpVertexes(const Vertexes &) const
 {
 }
 
-JsonDumper::JsonDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix,
+JsonDumper::JsonDumper(std::ostream &out, const SvgWorld &world, const std::string &namePrefix,
                        bool pretty) :
-    IDumper(out, pr, namePrefix),
+    IDumper(out, world, namePrefix),
     pretty(pretty)
 {
-    dumpPath(pr.getTesselated());
+    dumpPath(world);
 }
 
 //************************************************************************************************************************************************************
@@ -174,10 +174,10 @@ void LuaDumper::dumpVertexes(const Vertexes &what) const
     }
 }
 
-LuaDumper::LuaDumper(std::ostream &out, const SvgProcessor &pr, const std::string &namePrefix,
+LuaDumper::LuaDumper(std::ostream &out, const SvgWorld &world, const std::string &namePrefix,
                      const bool use_local) :
-    IDumper(out, pr, namePrefix),
+    IDumper(out, world, namePrefix),
     use_local(use_local)
 {
-    dumpPath(pr.getTesselated());
+    dumpPath(world);
 }

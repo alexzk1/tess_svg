@@ -5,7 +5,6 @@
 #ifndef TESSVG_SVGPROCESSOR_H
 #define TESSVG_SVGPROCESSOR_H
 
-#include "SvgParsers.h"
 #include "processing_data.hpp"
 #include "pugixml.hpp"
 
@@ -22,18 +21,23 @@ class xmlerror : public std::runtime_error
     }
 };
 
-class SvgProcessor
+/// @brief Simple transformations (processing, like boolean intercections) chain builder.
+class SvgWorldTransformers
 {
-  private:
-    pugi::xml_document doc;
-    SvgWorld tesselated;
-
   public:
-    SvgProcessor() = default;
-    explicit SvgProcessor(std::istream &src);
-    void parse_svg_file(std::istream &src);
+    // TODO:
+    SvgWorldTransformers &addTransformer();
+
+    ///@brief Builds final surrounding polygon which is the result of this tool.
     [[nodiscard]]
-    const SvgWorld &getTesselated() const;
+    SvgWorld buildSurroundingPolygons(SvgWorld world);
+
+  private:
 };
+
+/// @brief Load SVG file/data for further processing, it does parsing of it like accounting nested
+/// translations.
+/// @return SvgWolrd object which contains loaded SVG data translated into World coordinates.
+SvgWorld loadSvgWorld(std::istream &src);
 
 #endif // TESSVG_SVGPROCESSOR_H

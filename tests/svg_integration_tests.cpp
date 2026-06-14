@@ -1,5 +1,6 @@
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgProcessor.h"
+#include "tess_svg/processing_data.hpp"
 #include "tests_utils.hpp"
 
 #include <memory>
@@ -13,10 +14,11 @@ namespace Test {
 class SvgIntegrationTest : public ::testing::Test, public TestUtils
 {
   protected:
-    std::unique_ptr<SvgProcessor> createProcessor(const std::string &svg_content)
+    // Creates world without additional processing added, plain svg->finalize.
+    SvgWorld createPureWorld(const std::string &svg_content)
     {
-        auto ss = std::make_unique<std::stringstream>(svg_content);
-        return std::make_unique<SvgProcessor>(*ss);
+        std::stringstream ss(svg_content);
+        return SvgWorldTransformers().buildSurroundingPolygons(loadSvgWorld(ss));
     }
 };
 
@@ -40,10 +42,8 @@ TEST(MathUnitTest, PolygonShoelaceFormula)
 TEST_F(SvgIntegrationTest, SinglePrimitiveAtRoot)
 {
     const std::string svg = R"(<svg><rect x="0" y="0" width="10" height="20"/></svg>)";
-    auto processor = createProcessor(svg);
-
     // Площадь должна быть 200
-    EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 200.0, 1e-4);
+    EXPECT_NEAR(calculateTotalAreaFromProcessor(createPureWorld(svg)), 200.0, 1e-4);
 }
 
 // 2. Тест: Масштабирование группы (проверка накопления матриц)
@@ -56,9 +56,7 @@ TEST_F(SvgIntegrationTest, NestedScalingTransform)
                 <rect x="0" y="0" width="10" height="10"/>
             </g>
         </svg>)svg";
-    auto processor = createProcessor(svg);
-
-    EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 400.0, 1e-4);
+    EXPECT_NEAR(calculateTotalAreaFromProcessor(createPureWorld(svg)), 400.0, 1e-4);
 }
 
 // 3. Тест: Сложная вложенность (Матрица: Translate -> Rotate -> Scale)
@@ -80,10 +78,8 @@ TEST_F(SvgIntegrationTest, DeeplyNestedTransformations)
                 </g>
             </g>
         </svg>)svg";
-    auto processor = createProcessor(svg);
-
     // Площадь не должна измениться от поворота и переноса, только масштаб (который 1)
-    EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 200.0, 1e-4);
+    EXPECT_NEAR(calculateTotalAreaFromProcessor(createPureWorld(svg)), 200.0, 1e-4);
 }
 
 TEST_F(SvgIntegrationTest, DeeplyNestedTransformationsScaled)
@@ -97,11 +93,8 @@ TEST_F(SvgIntegrationTest, DeeplyNestedTransformationsScaled)
                 </g>
             </g>
         </svg>)svg";
-    auto ss = std::make_unique<std::stringstream>(svg);
-    const SvgProcessor processor(*ss);
-
     // Area 200 * (scale 2)^2 = 800. Поворот не влияет на площадь.
-    EXPECT_NEAR(TestUtils::calculateTotalAreaFromProcessor(processor), 800.0, 1e-4);
+    EXPECT_NEAR(TestUtils::calculateTotalAreaFromProcessor(createPureWorld(svg)), 800.0, 1e-4);
 }
 
 // 4. Тест: Комбинированный Scale + Translate (проверка порядка умножения матриц)
@@ -120,9 +113,7 @@ TEST_F(SvgIntegrationTest, ScaleAndTranslateOrder)
         </svg>)svg";
     // rect (5,0) -> scale(2) -> (10,0). Размер остается 10x10, но координаты уплывают.
     // Площадь должна быть просто Area * Scale^2 = 100 * 4 = 400.
-
-    auto processor = createProcessor(svg);
-    EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 400.0, 1e-4);
+    EXPECT_NEAR(calculateTotalAreaFromProcessor(createPureWorld(svg)), 400.0, 1e-4);
 }
 
 // 5. Тест: Несколько групп на одном уровне (проверка независимости RecursionParameters)
@@ -136,8 +127,6 @@ TEST_F(SvgIntegrationTest, SiblingsIndependence)
     // Group 1: area = 100 * 4 = 400
     // Group 2: area = 25 * 9 = 225
     // Total = 625
-
-    auto processor = createProcessor(svg);
-    EXPECT_NEAR(calculateTotalAreaFromProcessor(*processor), 625.0, 1e-4);
+    EXPECT_NEAR(calculateTotalAreaFromProcessor(createPureWorld(svg)), 625.0, 1e-4);
 }
 } // namespace Test

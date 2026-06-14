@@ -73,6 +73,10 @@ class NodeParser
     [[nodiscard]]
     Loops parse(const GlVertex::trans_matrix_t &parentTransform) const;
 
+    /// @brief Porovides standard node name (rect, circle, etc.).
+    /// @return Lowercased XML/Svg node / tag name.
+    static std::string nodeName(const pugi::xml_node &node);
+
   protected:
     const pugi::xml_node &node;
     std::string nodeName_;

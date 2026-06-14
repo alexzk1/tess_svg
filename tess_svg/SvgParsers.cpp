@@ -85,7 +85,7 @@ ShapeParser findParser(const std::string &lowerCasedNodeName)
 
 NodeParser::NodeParser(const pugi::xml_node &node) :
     node(node),
-    nodeName_(toLower(node.name())),
+    nodeName_(nodeName(this->node)),
     parser(findParser(nodeName_))
 {
 }
@@ -107,6 +107,11 @@ Loops NodeParser::parse(const GlVertex::trans_matrix_t &parentTransform) const
         throw std::runtime_error("Node " + nodeName_ + " is not supported yet.");
     }
     return parser(node, parentTransform);
+}
+
+std::string NodeParser::nodeName(const pugi::xml_node &node)
+{
+    return toLower(node.name());
 }
 
 namespace SvgParsers {

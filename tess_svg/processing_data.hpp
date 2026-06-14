@@ -107,7 +107,7 @@ struct SvgWorld
     /// @brief Scene geometrical objects translated to world space or final world space contour(s).
     std::vector<SvgGroup> scene;
     /// @brief <defs> geometrical objects.
-    ParsedSvgElements defs;
+    std::vector<SvgGroup> defs;
 
     void reset()
     {

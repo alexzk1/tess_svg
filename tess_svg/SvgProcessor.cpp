@@ -50,9 +50,24 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
         RecursionParameters childrenParams{params.parentTrans};
         updateTransform(node, childrenParams.parentTrans);
 
+        bool hadDef = false; // strings optimization
         for (pugi::xml_node childNode = node.first_child(); childNode;
              childNode = childNode.next_sibling())
         {
+            // Note, it will try to parse <defs><defs></defs></defs> too, however nested one is
+            // invalid and will be lost any way.
+            if (!hadDef && NodeParser::nodeName(childNode) == "defs") [[unlikely]]
+            {
+                // 1 <defs> per 1 <svg> is expected.
+                hadDef = true;
+                SvgWorld tmp;
+                RecursionParameters defsRecursion{};
+                // Passing <defs> node itself as it would be <svg>.
+                parseSvgWorld(tmp, 0u, childNode, defsRecursion);
+                // Treating <defs> as new <svg> in terms of geometry elements.
+                output.defs = std::move(tmp.scene);
+                continue;
+            }
             childrenParams.singleNodeLoops.clear();
             parseSvgWorld(output, recursionLevel + 1, childNode, childrenParams);
 

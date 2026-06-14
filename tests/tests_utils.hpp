@@ -35,12 +35,12 @@ class TestUtils
         return std::abs(area) / 2.0;
     }
 
-    static double calculateTotalAreaFromProcessor(const SvgWorld &world)
+    static double calculateTotalWorldArea(const SvgWorld &world)
     {
         double total_area = 0.0;
-        for (auto const &[group_id, group] : world.scene)
+        for (const auto &group : world.scene)
         {
-            for (const auto &tess : group)
+            for (const auto &tess : group.elements)
             {
                 total_area += calculatePolygonArea(tess.finalData());
             }

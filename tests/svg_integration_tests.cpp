@@ -50,6 +50,13 @@ TEST(MathUnitTest, PolygonShoelaceFormula)
     // 3. Сложный многоугольник (L-shape)
     const Vertexes lShape = {{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 2}, {0, 2}}; // Area = 3
     EXPECT_NEAR(TestUtils::calculatePolygonArea(lShape), 3.0, 1e-7);
+
+    EXPECT_NEAR(TestUtils::calculateTotalLoopsArea({square}),
+                TestUtils::calculatePolygonArea(square), 1e-7);
+    EXPECT_NEAR(TestUtils::calculateTotalLoopsArea({square, tri, lShape}),
+                TestUtils::calculatePolygonArea(square) + TestUtils::calculatePolygonArea(tri)
+                  + TestUtils::calculatePolygonArea(lShape),
+                1e-7);
 }
 
 // 1. Тест: Базовый примитив (проверка, что корень-контейнер <svg> не теряет детей)

@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <numeric>
 
 namespace Test {
 class TestUtils
@@ -46,6 +47,13 @@ class TestUtils
             }
         }
         return total_area;
+    }
+
+    static double calculateTotalLoopsArea(const Loops &loops)
+    {
+        return std::accumulate(loops.begin(), loops.end(), 0.0, [](double curr, const Vertexes &v) {
+            return curr + calculatePolygonArea(v);
+        });
     }
 };
 

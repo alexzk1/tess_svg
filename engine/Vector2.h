@@ -18,6 +18,7 @@
 #include <boost/numeric/ublas/vector.hpp>
 
 #include <array>
+#include <numbers>
 
 template <typename T>
 struct VStorage
@@ -91,15 +92,17 @@ constexpr double PI = 3.14159265358979323846;
  * 0 0 1
  */
 
-template <typename T, int precission>
+template <typename T, int precision>
 class Vector2
 {
   public:
     using trans_matrix_t = boost::numeric::ublas::matrix<T>;
+    using value_t = T;
+
+    inline static constexpr T pi = std::numbers::pi_v<T>;
+    inline static constexpr int kPrecision = precision;
 
   protected:
-    static constexpr T pi = (T)PI;
-
     VStorage<T> orig;
 
   public:
@@ -139,7 +142,7 @@ class Vector2
         return orig.y;
     }
 
-    Vector2<T, precission> &operator%=(T theta)
+    Vector2<T, precision> &operator%=(T theta)
     {
         /*
          * Rotate and assign operator
@@ -152,9 +155,9 @@ class Vector2
         return *this;
     }
 
-    Vector2<T, precission> mirror(Vector2<T, precission> onPoint) const
+    Vector2<T, precision> mirror(Vector2<T, precision> onPoint) const
     {
-        Vector2<T, precission> res = orig - onPoint.get();
+        Vector2<T, precision> res = orig - onPoint.get();
         res.orig.x = -res.orig.x;
         res.orig.y = -res.orig.y;
 
@@ -182,19 +185,19 @@ class Vector2
         orig.y = v[1];
     }
 
-    Vector2<T, precission> operator%(T theta) const
+    Vector2<T, precision> operator%(T theta) const
     {
-        Vector2<T, precission> v(orig);
+        Vector2<T, precision> v(orig);
         v %= theta;
         return v;
     }
 
-    Vector2<T, precission> norm() const
+    Vector2<T, precision> norm() const
     {
         return orig / this->mag();
     }
 
-    T dot(const Vector2<T, precission> &otr) const
+    T dot(const Vector2<T, precision> &otr) const
     {
         return orig.x * otr.x() + orig.y * otr.y();
     }
@@ -214,7 +217,7 @@ class Vector2
         return stringfmt("[%f, %f] \n", x(), y());
     }
 
-    bool operator==(const Vector2<T, precission> &c) const
+    bool operator==(const Vector2<T, precision> &c) const
     {
         bool ex = mymath::almost_equal<T>(x(), c.x());
         bool ey = mymath::almost_equal<T>(y(), c.y());

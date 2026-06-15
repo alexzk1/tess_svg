@@ -17,6 +17,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 
@@ -32,7 +33,7 @@ int main(const int ac, const char **av)
 
         // Declare a group of options that will be
         // allowed only on command line
-        options_description generic("Generic options");
+        options_description generic("Options");
         generic.add_options()("help", "produce help message")(
           "input,i", value<std::string>(), "input file name, if not set - using stdin")(
           "output,o", value<std::string>(), "output file name, if not set - using stdout")(
@@ -79,8 +80,13 @@ int main(const int ac, const char **av)
             std::cerr
               << "Warning! Source svg (image) files must assume that initial zero rotation of "
                  "Actor points to right --->>!!!!\n";
-            // std::cerr << "If SVG file contains object \"SCREEN\" it will be used as reference for
-            // sizes and removed from output.\n";
+            std::cerr << "Note: output geometry is simplified to represent the primary exterior "
+                         "boundary. Internal voids are resolved into the main contour to ensure "
+                         "compatibility "
+                         "with standard 2D physics engines and rendering primitives that require "
+                         "single-polygon "
+                         "continuity.\n"
+                      << std::endl;
             return (error_opts) ? 1 : 0;
         }
 

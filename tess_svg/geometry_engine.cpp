@@ -168,12 +168,12 @@ Loops resolveEvenOddInternalTopology(Loops raw_loops)
     }
 
     // Превращаем в PathsD для Clipper
-    Clipper2Lib::PathsD paths = toPathsD(raw_loops);
+    const Clipper2Lib::PathsD paths = toPathsD(raw_loops);
 
     // Применяем Union с правилом EvenOdd.
     // Это превратит наложенные контуры одного элемента в "правильную" структуру:
     // Внешний будет CCW, внутренние (дырки) станут CW.
-    Clipper2Lib::PathsD resolved = Clipper2Lib::Union(paths, Clipper2Lib::FillRule::EvenOdd);
+    const Clipper2Lib::PathsD resolved = Clipper2Lib::Union(paths, Clipper2Lib::FillRule::EvenOdd);
 
     return fromPathsD(resolved);
 }

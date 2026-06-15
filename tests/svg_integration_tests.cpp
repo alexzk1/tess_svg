@@ -3,14 +3,23 @@
 #include "tess_svg/processing_data.hpp"
 #include "tests_utils.hpp"
 
+#include <cstdlib>
+#include <format>
 #include <numbers>
 #include <sstream>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+// Topological Simplification Note: To ensure compatibility with downstream processors (e.g., 2D
+// physics engines), internal holes are integrated into the exterior boundary during tessellation.
+// This avoids topological discontinuities caused by "bridges" and ensures that each object is
+// represented as a single, continuous vertex array. In this mode, disconnected voids are treated as
+// non-reachable features within the primary contour.
 
 namespace Test {
 
@@ -57,6 +66,151 @@ TEST(MathUnitTest, PolygonShoelaceFormula)
                 TestUtils::calculatePolygonArea(square) + TestUtils::calculatePolygonArea(tri)
                   + TestUtils::calculatePolygonArea(lShape),
                 1e-7);
+}
+
+TEST(MathUnitTest, HolesDetectorSelfCheck)
+{
+    SCOPED_TRACE("Validatating that TestUtils::hasHole() works properly.");
+
+    struct Observation
+    {
+        bool holeBefore = false;
+        bool holeAfter = false;
+    };
+
+    // Тестовые сценарии
+    struct TestCase
+    {
+        std::string name;
+        std::string svg;
+        bool expectedHoleInInput; // Проверяем, что парсер увидел дырку в <path>
+        bool singlePath;
+    };
+
+    static const std::vector<TestCase> cases = {
+      // 1. Чистый квадрат: Нет дырки до -> Нет дырки после
+      {"SolidSquare", R"svg(<svg><rect x="0" y="0" width="10" height="10"/></svg>)svg", false,
+       false},
+
+      // 2. Путь с дыркой: Есть дырка до (в <path>) -> Должна быть после Union
+      {"PathWithHole",
+       R"svg(<svg><path fill-rule="evenodd" d="M0,0 H10 V10 H0 Z M2,2 H8 V8 H2 Z"/></svg>)svg",
+       true, true},
+
+      // 3. Смешанный случай: Квадрат и треугольник.
+      {"OverlappingShapesNoHole",
+       R"svg(<svg><rect x="0" y="0" width="10" height="10"/><path d="M5,5 L15,5 L10,15 Z"/></svg>)svg",
+       false, false}};
+
+    for (const auto &tc : cases)
+    {
+        SCOPED_TRACE(tc.name);
+        std::stringstream ss(tc.svg);
+
+        Observation obs;
+        auto world = loadSvgWorld(ss); // Загружаем "сырой" мир из XML
+
+        // --- ЗАПУСК КОНВЕЙЕРА С ПЕРЕХВАТОМ СОСТОЯНИЯ ---
+        std::ignore =
+          SvgWorldTransformers()
+            // Шаг 1: Проверяем состояние сразу после парсинга (до Union)
+            .addTransformer([&](SvgWorld &w) {
+                if (TestUtils::hasHole(w))
+                {
+                    obs.holeBefore = true;
+                }
+            })
+            // Шаг 2: Основная бизнес-логика трансформации
+            .addTransformer(&unionElementsTransformer)
+            // Шаг 3: Проверяем состояние после Union, но ДО тесселяции (в формате Loops)
+            .addTransformer([&](SvgWorld &w) {
+                if (TestUtils::hasHole(w))
+                {
+                    obs.holeAfter = true;
+                }
+            })
+            // Завершаем построение и прогоняем через всё
+            .buildSurroundingPolygons(world);
+
+        // --- АНАЛИЗ РЕЗУЛЬТАТОВ ---
+
+        // 1. Проверяем, правильно ли мы распознали дырку в самом SVG (на этапе парсинга)
+        if (tc.singlePath)
+        {
+            EXPECT_EQ(obs.holeBefore, false) << "Single path prior unionElementsTransformer is not "
+                                                "expected to be properly winding for test math.";
+        }
+        else
+        {
+            EXPECT_EQ(obs.holeBefore, tc.expectedHoleInInput)
+              << "Parser/StageA failed to detect hole in input for " << tc.name;
+        }
+
+        // 2. ПРОВЕРКА ГЛАВНОГО: Не убил ли Union нашу топологию?
+        if (tc.expectedHoleInInput)
+        {
+            EXPECT_TRUE(obs.holeAfter)
+              << "Union transformation destroyed the topological hole! For " << tc.name;
+        }
+        else
+        {
+            EXPECT_FALSE(obs.holeAfter)
+              << "Union transformation created a phantom hole! For " << tc.name;
+        }
+    }
+}
+TEST(MathUnitTest, AbsoluteTopologicalVerification)
+{
+    const std::string svg = R"svg(
+        <svg>
+            <!-- Объект с дыркой -->
+            <path fill-rule="evenodd" d="M0,0 H10 V10 H0 Z M2,2 H8 V8 H2 Z"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    auto world = loadSvgWorld(ss);
+
+    // Применяем весь пайплайн (Stage A + Stage B)
+    unionElementsTransformer(world);
+
+    for (const auto &group : world.scene)
+    {
+        for (const auto &element : group.elements)
+        {
+            if (std::holds_alternative<Loops>(element.data))
+            {
+                const auto &loops = std::get<Loops>(element.data);
+
+                // 1. Проверка через вашу функцию (проверяем логику интерфейса)
+                const bool detectedByFunction =
+                  TestUtils::hasHole(world); // или локально для island
+
+                // 2. ПРОВЕРКА МАТЕМАТИЧЕСКОЙ ИСТИНЫ (Независимый метод)
+                double sumSignedArea = 0.0;
+                double sumAbsArea = 0.0;
+
+                for (const auto &loop : loops)
+                {
+                    // Важно: используем вашу функцию, которая считает знаковую площадь!
+                    const double a = TestUtils::calculatePolygonArea(loop);
+                    sumSignedArea += a;
+                    sumAbsArea += std::abs(a);
+                }
+
+                // Проверка на наличие дырки через математическое различие
+                const bool mathematicallyHasHole =
+                  (std::abs(sumAbsArea - std::abs(sumSignedArea)) > 1e-4);
+
+                // ВОТ ЗДЕСЬ ПРОИСХОДИТ НАСТОЯЩАЯ ПРОВЕРКА:
+                // Мы проверяем, что наш "детектор" совпадает с математической реальностью.
+                EXPECT_EQ(detectedByFunction, mathematicallyHasHole)
+                  << "Divergence between hasHole() and mathematical area calculation!";
+
+                // И дополнительно подтверждаем результат для конкретного случая (100 - 36 = 64?)
+                EXPECT_NEAR(std::abs(sumSignedArea), 64.0, 1e-4); // Пример: 100 - 16
+            }
+        }
+    }
 }
 
 // 1. Тест: Базовый примитив (проверка, что корень-контейнер <svg> не теряет детей)
@@ -318,9 +472,150 @@ TEST_F(SvgIntegrationTest, UnionElementsTransformerSimplifiesDisjointIslands)
     std::stringstream ss(svg);
     const auto final_world = SvgWorldTransformers()
                                .addTransformer(&unionElementsTransformer)
+                               .addTransformer([](SvgWorld &w) {
+                                   EXPECT_FALSE(hasHole(w));
+                               })
                                .buildSurroundingPolygons(loadSvgWorld(ss));
 
     EXPECT_NEAR(calculateTotalWorldArea(final_world), 200.0, 1e-4);
+}
+
+TEST_F(SvgIntegrationTest, OuterBoundaryIntegrityWithInternalHoles)
+{
+    /*
+       Тест: Проверка целостности внешней границы (Outer Hull).
+       Мы создаем L-образную фигуру с дыркой внутри.
+       L-shape координаты: (0,0), (10,0), (10,5), (5,5), (5,10), (0,10)
+       Внутренняя дырка: круг или квадрат в центре.
+
+        Математика:
+        Площадь L-shape = 75.
+        Выпуклая оболочка (Convex Hull) этого L-shape — это прямоугольник (0,0) to (10,10).
+        Area Convex Hull = 100.
+
+         Если тесселятор из-за дырки или мостиков исказит хотя бы одну крайнюю точку
+         в сторону центра, площадь выпуклой оболочки станет < 100.
+      */
+    const std::string svg = R"svg(
+       <svg>
+        <path fill-rule="evenodd" d="M 0 0 L 10 0 L 10 5 L 5 5 L 5 10 L 0 10 Z M 2 2 L 4 2 L 3 5 Z" />
+       </svg>)svg)svg";
+
+    /*
+     (0⋅0)−(0⋅10)=0(0⋅0)−(0⋅10)=0
+     (10⋅5)−(0⋅10)=50(10⋅5)−(0⋅10)=50
+     (10⋅10)−(5⋅5)=75(10⋅10)−(5⋅5)=75
+     (5⋅10)−(10⋅0)=50(5⋅10)−(10⋅0)=50
+     (0⋅0)−(10⋅0)=0(0⋅0)−(10⋅0)=0
+
+  Сумма =0+50+75+50+0=175=0+50+75+50+0=175.
+  Площадь =175/2=87.5=175/2=87.5.
+     */
+    const double expectedHullArea = 87.5;
+
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&unionElementsTransformer)
+                               .addTransformer([](SvgWorld &w) {
+                                   EXPECT_TRUE(hasHole(w)) << "Check test setup, hole is missing.";
+                               })
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    // 1. Собираем все точки из всех полученных элементов (Islands)
+    std::vector<TestUtils::Point2D> all_points;
+    for (const auto &group : final_world.scene)
+    {
+        for (const auto &element : group.elements)
+        {
+            // Используем ваш метод доступа к данным (get if Polyline)
+            if (!element.isEmpty() && std::holds_alternative<Polyline>(element.data))
+            {
+                const auto &pl = std::get<Polyline>(element.data);
+                for (const auto &v : pl)
+                {
+                    all_points.push_back({static_cast<double>(v.x()), static_cast<double>(v.y())});
+                }
+            }
+        }
+    }
+
+    ASSERT_FALSE(all_points.empty()) << "No vertices found after transformation!";
+
+    // 2. Считаем площадь выпуклой оболочки всех точек
+    const double actualHullArea = TestUtils::calculateConvexHullArea(all_points);
+
+    // Проверяем, что внешняя граница не была стянута внутрь (допустимая погрешность на float)
+    EXPECT_NEAR(actualHullArea, expectedHullArea, 1e-4);
+}
+
+TEST_F(SvgIntegrationTest, OuterBoundaryIntegrityWithInternalTriangularHole)
+{
+    /*
+       Тест: "Квадрат с треугольной дыркой".
+       Внешний контур (Square): (0,0), (10,0), (10,10), (0,10). Area = 100.
+       Внутренний контур (Triangle Hole): (2,2), (4,2), (3,5).
+
+ Ожидаемый Convex Hull: Квадрат (0,0) to (10,10). Area = 100.
+ Этот тест проверяет, что никакие "мостики" или операции Clipper/GLU
+ не изменили положение внешних вершин и не создали новых крайних точек.
+*/
+    const std::string svg = R"svg(<svg>
+            <path fill-rule="evenodd" d="M0,0 L10,0 L10,10 L0,10 Z M2,2 L4,2 L3,5 Z"/>
+        </svg>)svg";
+
+    const double expectedHullArea = 100.0;
+
+    std::stringstream ss(svg);
+    // Прогоняем через весь пайплайн до финальных полилиний
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&unionElementsTransformer)
+                               .addTransformer([](SvgWorld &w) {
+                                   EXPECT_TRUE(hasHole(w)) << "Check test setup, hole is missing.";
+                               })
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    // 1. Собираем все вершины из всех получившихся островов/элементов
+    std::vector<TestUtils::Point2D> all_points;
+    for (const auto &group : final_world.scene)
+    {
+        for (const auto &element : group.elements)
+        {
+            if (!element.isEmpty() && std::holds_alternative<Polyline>(element.data))
+            {
+                const auto &pl = std::get<Polyline>(element.data);
+                for (const auto &v : pl)
+                {
+                    all_points.push_back({static_cast<double>(v.x()), static_cast<double>(v.y())});
+                }
+            }
+            else if (!element.isEmpty() && std::holds_alternative<Loops>(element.data))
+            {
+                // Если по какой-то причине тесселятор вернул Loops (что маловероятно для
+                // финализатора)
+                const auto &loops = std::get<Loops>(element.data);
+                for (const auto &pl : loops)
+                {
+                    for (const auto &v : pl)
+                    {
+                        all_points.push_back(
+                          {static_cast<double>(v.x()), static_cast<double>(v.y())});
+                    }
+                }
+            }
+        }
+    }
+
+    ASSERT_FALSE(all_points.empty()) << "No vertices found!";
+
+    // 2. Считаем площадь выпуклой оболочки (Convex Hull)
+    const double actualHullArea = TestUtils::calculateConvexHullArea(all_points);
+
+    /*
+       Математическое ожидание: 100.0.
+       Если результат будет < 100, значит мостик или дырка "прорезали" внешний контур.
+       Если результат > 100, значит возникло паразитное расширение геометрии.
+    */
+    EXPECT_NEAR(actualHullArea, expectedHullArea, 1e-4);
 }
 
 } // namespace Test

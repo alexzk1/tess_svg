@@ -118,6 +118,9 @@ struct SvgWorld
 
 /// @brief Makes final transformation of the groups and produces bounding polygon(s) in World
 /// coordinates.
+/// @note 1 SVG usually represents 1 "world object", however prev steps could decompose single SVG
+/// into multiply geometrical sub-objects. Each of them will be passed to Tesselate::process() and
+/// produce own output value. Join of all outputs equals to perimeter of original SVG.
 inline void finalizeGroupsContours(std::vector<SvgGroup> &groups)
 {
     for (SvgGroup &g : groups)

@@ -34,7 +34,7 @@ void throwIfWrongTag(const std::string &expected, const pugi::xml_node &node)
     }
 }
 
-void generateEllipsePoints(Vertexes &pts, float cx, float cy, float rx, float ry)
+void generateEllipsePoints(Polyline &pts, float cx, float cy, float rx, float ry)
 {
     if (rx <= 0 || ry <= 0)
     {
@@ -150,7 +150,7 @@ Loops parseCircle(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTra
     const auto cy = node.attribute("cy").as_float();
     const auto r = node.attribute("r").as_float();
 
-    Vertexes pts;
+    Polyline pts;
     generateEllipsePoints(pts, cx, cy, r, r); // Для круга rx = ry
     return pointsToLoops(std::move(pts), parentTransform);
 }
@@ -166,7 +166,7 @@ Loops parseEllipse(const pugi::xml_node &node, GlVertex::trans_matrix_t parentTr
     const auto rx = node.attribute("rx").as_float();
     const auto ry = node.attribute("ry").as_float();
 
-    Vertexes pts;
+    Polyline pts;
     generateEllipsePoints(pts, cx, cy, rx, ry);
     return pointsToLoops(std::move(pts), parentTransform);
 }

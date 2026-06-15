@@ -39,7 +39,7 @@ TEST_F(TesselationIntegrationTest, BoundaryClosureTest)
     Loops loops;
 
     // Квадрат (0,0) - (10,10)
-    const Vertexes shape = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    const Polyline shape = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
     loops.push_back(shape);
 
     // Режим контуров (Boundary Only)
@@ -53,7 +53,7 @@ TEST_F(TesselationIntegrationTest, SelfIntersectingBoundaryTest)
     Tesselate tess;
     Loops loops;
     // Песочные часы
-    const Vertexes hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
+    const Polyline hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
     loops.push_back(hourglass);
 
     const auto &result = tess.process(loops, TessMode::Contours);
@@ -70,10 +70,10 @@ TEST_F(TesselationIntegrationTest, HoleTest)
     Loops loops;
 
     // Внешний квадрат (0,0) - (10,10)
-    const Vertexes outer = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    const Polyline outer = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
     // Внутренний квадрат (дырка) (2,2) - (8,8)
     // Важно: для NONZERO правила часто лучше менять направление обхода
-    const Vertexes inner = {{2, 2}, {2, 8}, {8, 8}, {8, 2}};
+    const Polyline inner = {{2, 2}, {2, 8}, {8, 8}, {8, 2}};
 
     loops.push_back(outer);
     loops.push_back(inner);
@@ -108,7 +108,7 @@ TEST_P(TesselationIntegrationTest, SelfIntersectionTest)
     // Фигура "бабочка" или "песочные часы"
     // (0,0) -> (10,10) -> (10,0) -> (0,10)
     // Пересечение должно создаться в (5,5)
-    const Vertexes hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
+    const Polyline hourglass = {{0, 0}, {10, 10}, {10, 0}, {0, 10}};
     loops.push_back(hourglass);
 
     // Если l_combine работает, этот вызов не бросит исключение
@@ -123,7 +123,7 @@ TEST_P(TesselationIntegrationTest, DegenerateTest)
     Tesselate tess;
     Loops loops;
     // Линия вместо полигона (все точки на одной прямой)
-    const Vertexes line = {{0, 0}, {10, 10}, {5, 5}};
+    const Polyline line = {{0, 0}, {10, 10}, {5, 5}};
     loops.push_back(line);
 
     // Ожидаем, что тесселятор просто не создаст треугольников (площадь 0),
@@ -138,7 +138,7 @@ TEST_P(TesselationIntegrationTest, CompareParserVsManual)
     const std::string polygonCoords = "0,0 10,10 10,0 0,10";
 
     // --- МЕТОД А: Ручное создание Loops (Manual) ---
-    const Vertexes hourglass_manual = {{0.0f, 0.0f}, {10.0f, 10.0f}, {10.0f, 0.0f}, {0.0f, 10.0f}};
+    const Polyline hourglass_manual = {{0.0f, 0.0f}, {10.0f, 10.0f}, {10.0f, 0.0f}, {0.0f, 10.0f}};
 
     Tesselate tess;
     auto result_manual = tess.process({hourglass_manual}, GetParam().mode);

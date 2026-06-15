@@ -15,7 +15,7 @@ class TestUtils
      * @brief Calculates the area of a non-self-intersecting polygon using Shoelace Formula.
      * Works for any number of vertices defining a closed loop.
      */
-    static double calculatePolygonArea(const Vertexes &v)
+    static double calculatePolygonArea(const Polyline &v)
     {
         if (v.size() < 3)
         {
@@ -33,7 +33,7 @@ class TestUtils
             area += (p1.x() * p2.y()) - (p2.x() * p1.y());
         }
 
-        return std::abs(area) / 2.0;
+        return area / 2.0;
     }
 
     static double calculateTotalWorldArea(const SvgWorld &world)
@@ -51,7 +51,7 @@ class TestUtils
 
     static double calculateTotalLoopsArea(const Loops &loops)
     {
-        return std::accumulate(loops.begin(), loops.end(), 0.0, [](double curr, const Vertexes &v) {
+        return std::accumulate(loops.begin(), loops.end(), 0.0, [](double curr, const Polyline &v) {
             return curr + calculatePolygonArea(v);
         });
     }

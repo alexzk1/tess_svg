@@ -32,7 +32,7 @@ class JsonDumper : public IDumper
   protected:
     const bool pretty;
     void dumpPath(const SvgWorld &what) const;
-    void dumpVertexes(const Vertexes &what) const;
+    void dumpPolyline(const Polyline &what) const;
 
   public:
     explicit JsonDumper(std::ostream &out, const SvgWorld &world,
@@ -43,7 +43,7 @@ class LuaDumper : public IDumper
 {
   protected:
     void dumpPath(const SvgWorld &what) const;
-    void dumpVertexes(const Vertexes &what) const;
+    void dumpPolyline(const Polyline &what) const;
     const bool use_local;
 
   public:

@@ -30,7 +30,6 @@ using SvgWorldTransformer = std::function<void(SvgWorld &)>;
 class SvgWorldTransformers
 {
   public:
-    // TODO:
     SvgWorldTransformers &addTransformer(SvgWorldTransformer trans);
 
     ///@brief Builds final surrounding polygon which is the result of this tool.
@@ -45,5 +44,17 @@ class SvgWorldTransformers
 /// translations.
 /// @return SvgWolrd object which contains loaded SVG data translated into World coordinates.
 SvgWorld loadSvgWorld(std::istream &src);
+
+/**
+ * @brief Merges all primitives within each group into a single set of contours (Loops).
+ * This transforms <g><rect/><circle/></g> into one object with 2 Loops (or one merged loop).
+ */
+void unionElementsTransformer(SvgWorld &world);
+
+/**
+ * @brief Applies masks from <defs> to the scene elements.
+ * If a mask is a group, it will be automatically merged into a single contour before clipping.
+ */
+void clipByDefsTransformer(SvgWorld &world);
 
 #endif // TESSVG_SVGPROCESSOR_H

@@ -62,7 +62,7 @@ bool checkIfRelative(const std::string &val)
 static constexpr int kMaximumRecursiveDepth = 12;
 
 void subdivideQuadratic(const GlVertex &p0, const GlVertex &p1, const GlVertex &p2, float flatness,
-                        Vertexes &path, int depth)
+                        Polyline &path, int depth)
 {
     // Находим середины отрезков (Алгоритм Кастельжо)
     const GlVertex m01 = (p0.get() + p1.get()) * 0.5;
@@ -87,7 +87,7 @@ void subdivideQuadratic(const GlVertex &p0, const GlVertex &p1, const GlVertex &
 }
 
 void subdivideCubic(const GlVertex &p0, const GlVertex &p1, const GlVertex &p2, const GlVertex &p3,
-                    float flatness, Vertexes &path, int depth)
+                    float flatness, Polyline &path, int depth)
 {
     // 2. Находим координаты контрольных точек относительно прямой p0-p3
     // Используем упрощенную оценку отклонения (параметрический чебышевский шаг)
@@ -127,7 +127,7 @@ void subdivideCubic(const GlVertex &p0, const GlVertex &p1, const GlVertex &p2, 
 // https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
 // https://github.com/igagis/svgren/blob/master/src/svgren/Renderer.cpp
 void ellipseArc(const GlVertex &start, double rx, double ry, double xAxisRotation,
-                bool largeArcFlag, bool sweepFlag, const GlVertex &end, Vertexes &path)
+                bool largeArcFlag, bool sweepFlag, const GlVertex &end, Polyline &path)
 {
     // 1. Учет нулевых радиусов (это просто линия)
     if (rx == 0.0 || ry == 0.0)
@@ -245,7 +245,7 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     if (!hasCommands && !strs.empty())
     {
         // Polyline mode, it contains coordinates only.
-        Vertexes poly_path;
+        Polyline poly_path;
         for (size_t i = 0; i < strs.size(); i += 2)
         {
             if (i + 1 < strs.size())
@@ -263,7 +263,7 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
     std::optional<GlVertex> lastMirrorQuadratic{std::nullopt};
     std::optional<GlVertex> lastMirrorCubic{std::nullopt};
 
-    Vertexes current_path;
+    Polyline current_path;
     std::string curr;
 
     for (std::size_t i = 0, n = strs.size(); i < n; ++i)
@@ -545,7 +545,7 @@ GlVertex TagDParser::getY(std::vector<std::string> &src, size_t &index)
 }
 
 void TagDParser::quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,
-                                 Vertexes &path)
+                                 Polyline &path)
 {
     subdivideQuadratic(x0y0, x1y1, xy, BEIZER_FLATNESS, path, 0);
 }

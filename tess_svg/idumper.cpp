@@ -61,7 +61,7 @@ void JsonDumper::dumpPath(const SvgWorld &what) const
     using namespace std;
     using namespace nlohmann;
 
-    const auto out_vertex = [](const Vertexes &what) -> json {
+    const auto out_vertex = [](const Polyline &what) -> json {
         json vertex = json::array();
         for (const auto &v : what)
         {
@@ -122,7 +122,7 @@ void JsonDumper::dumpPath(const SvgWorld &what) const
     }
 }
 
-void JsonDumper::dumpVertexes(const Vertexes &) const
+void JsonDumper::dumpPolyline(const Polyline &) const
 {
 }
 
@@ -152,7 +152,7 @@ void LuaDumper::dumpPath(const SvgWorld &what) const
         for (const auto &tess_result : g.elements)
         {
             outstr << tess_result.id() << " = { " << std::endl << "vertexes = {";
-            dumpVertexes(tess_result.finalData());
+            dumpPolyline(tess_result.finalData());
             outstr << "}," << std::endl;
         }
         outstr << "}," << std::endl;
@@ -160,7 +160,7 @@ void LuaDumper::dumpPath(const SvgWorld &what) const
     outstr << "}" << std::endl;
 }
 
-void LuaDumper::dumpVertexes(const Vertexes &what) const
+void LuaDumper::dumpPolyline(const Polyline &what) const
 {
     int cntr = 1;
 

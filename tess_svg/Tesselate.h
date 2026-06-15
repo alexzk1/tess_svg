@@ -7,10 +7,12 @@
 
 #include "GlDefs.h"
 
+#include <cstdint>
+
 /**
  * @brief Geomtry generation mode.
  */
-enum class TessMode {
+enum class TessMode : std::uint8_t {
     /// @brief Full triangulation.
     Triangles,
     /// @brief Contour only (for example collisions).
@@ -21,12 +23,12 @@ class Tesselate
 {
   public:
   private:
-    Vertexes tlist;
+    Polyline tlist;
 
   public:
-    const Vertexes &process(const Loops &vertexes, TessMode mode);
+    const Polyline &process(const Loops &src_polylines, TessMode mode);
     [[nodiscard]]
-    const Vertexes &getTesselated() const;
+    const Polyline &getTesselated() const;
 };
 
 #endif // TESSVG_TESSELACT_H

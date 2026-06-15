@@ -22,7 +22,7 @@
 #include <stdexcept>
 
 namespace {
-void fixWindingOrderForPhysics(Vertexes &points)
+void fixWindingOrderForPhysics(Polyline &points)
 {
     if (points.size() < 3)
     {
@@ -46,11 +46,11 @@ void fixWindingOrderForPhysics(Vertexes &points)
 }
 } // namespace
 
-const Vertexes &Tesselate::process(const Loops &vertexes, TessMode mode)
+const Polyline &Tesselate::process(const Loops &src_polylines, TessMode mode)
 {
     std::shared_ptr<GLUtesselator> tess;
-    Vertexes spareverts;
-    Vertexes curr_shape;
+    Polyline spareverts;
+    Polyline curr_shape;
 
     GLenum tess_style = 0;
     tlist.clear();
@@ -134,7 +134,7 @@ const Vertexes &Tesselate::process(const Loops &vertexes, TessMode mode)
     gluTessCallback(tess.get(), GLU_TESS_COMBINE, l_combine);
 
     GlPolygon arr_vert;
-    std::for_each(vertexes.cbegin(), vertexes.cend(), [&](auto &vert) {
+    std::for_each(src_polylines.cbegin(), src_polylines.cend(), [&](auto &vert) {
         GlContour cntr;
         std::for_each(vert.cbegin(), vert.cend(), [&](auto &v) {
             cntr.push_back(v.x());
@@ -166,7 +166,7 @@ const Vertexes &Tesselate::process(const Loops &vertexes, TessMode mode)
     return tlist;
 }
 
-const Vertexes &Tesselate::getTesselated() const
+const Polyline &Tesselate::getTesselated() const
 {
     return tlist;
 }

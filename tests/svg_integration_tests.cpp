@@ -40,15 +40,15 @@ TEST(MathUnitTest, PolygonShoelaceFormula)
 {
     SCOPED_TRACE("Self test for the class TestUtils.");
     // 1. Квадрат 10x10 через Shoelace
-    const Vertexes square = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    const Polyline square = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
     EXPECT_NEAR(TestUtils::calculatePolygonArea(square), 100.0, 1e-7);
 
     // 2. Треугольник (половина квадрата)
-    const Vertexes tri = {{0, 0}, {10, 0}, {0, 10}};
+    const Polyline tri = {{0, 0}, {10, 0}, {0, 10}};
     EXPECT_NEAR(TestUtils::calculatePolygonArea(tri), 50.0, 1e-7);
 
     // 3. Сложный многоугольник (L-shape)
-    const Vertexes lShape = {{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 2}, {0, 2}}; // Area = 3
+    const Polyline lShape = {{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 2}, {0, 2}}; // Area = 3
     EXPECT_NEAR(TestUtils::calculatePolygonArea(lShape), 3.0, 1e-7);
 
     EXPECT_NEAR(TestUtils::calculateTotalLoopsArea({square}),
@@ -276,6 +276,51 @@ TEST_F(SvgIntegrationTest, TransformerIdentity)
     EXPECT_TRUE(called);
     EXPECT_EQ(final.scene.front().id(), "rect_transformed");
     EXPECT_TRUE(final.scene.front().elements.front().isFinal());
+}
+
+TEST_F(SvgIntegrationTest, UnionElementsTransformerMergesOverlappingShapes)
+{
+    /*
+       Тест на слияние: Два перекрывающихся квадрата.
+       Square 1: (0,0) to (20,20) -> Area = 400
+       Square 2: (10,0) to (30,20) -> Area = 400
+       Intersection area is (10 * 20) = 200.
+       Total Union Area should be: 400 + 400 - 200 = 600.
+       Если слияние НЕ работает, сумма площадей будет 800 (или около того).
+    */
+    const std::string svg = R"svg(
+        <svg>
+            <rect x="0" y="0" width="20" height="20"/>
+            <rect x="10" y="0" width="20" height="20"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&unionElementsTransformer)
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 600.0, 1e-4);
+}
+
+TEST_F(SvgIntegrationTest, UnionElementsTransformerSimplifiesDisjointIslands)
+{
+    /*
+       Тест на сохранение раздельных объектов:
+       Два далеких друг от друга квадрата не должны слиться в один контур (по площади),
+       но они должны быть обработаны как отдельные элементы.
+    */
+    const std::string svg = R"svg(
+        <svg>
+            <rect x="0" y="0" width="10" height="10"/>   <!-- Area 100 -->
+            <rect x="100" y="100" width="10" height="10"/> <!-- Area 100 -->
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&unionElementsTransformer)
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 200.0, 1e-4);
 }
 
 } // namespace Test

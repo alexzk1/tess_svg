@@ -15,7 +15,7 @@ class TagDParser
     static GlVertex getY(std::vector<std::string> &src, size_t &index);
 
     static void quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,
-                                Vertexes &path);
+                                Polyline &path);
 
   public:
     TagDParser() = default;

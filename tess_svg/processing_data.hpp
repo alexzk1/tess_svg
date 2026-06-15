@@ -18,7 +18,7 @@ struct ParsedSvgElement
 {
     /// @brief Current data present in this object. Data changes when object flows through
     /// processing chain.
-    using GeometricalData = std::variant<std::monostate, Loops, Vertexes>;
+    using GeometricalData = std::variant<std::monostate, Loops, Polyline>;
 
     /// @brief Attributes setter.
     /// Ensures all attribute names are lowercased.
@@ -62,16 +62,16 @@ struct ParsedSvgElement
     [[nodiscard]]
     bool isFinal() const noexcept
     {
-        return std::holds_alternative<Vertexes>(data);
+        return std::holds_alternative<Polyline>(data);
     }
 
     /// @brief Access to final data if any.
     /// @returns Reference to final data if any or to empty data container otherwise.
     [[nodiscard]]
-    const Vertexes &finalData() const noexcept
+    const Polyline &finalData() const noexcept
     {
-        static const Vertexes kNothing;
-        if (const auto *p = std::get_if<Vertexes>(&data))
+        static const Polyline kNothing;
+        if (const auto *p = std::get_if<Polyline>(&data))
         {
             return *p;
         }

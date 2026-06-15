@@ -106,7 +106,9 @@ int main(const int ac, const char **av)
         std::ostream &optr = (fn.empty()) ? std::cout : out;
 
         SvgWorldTransformers transBuilder;
-        // TODO: add more optional transformers.
+
+        transBuilder.addTransformer(&unionElementsTransformer);
+
         const SvgWorld test(transBuilder.buildSurroundingPolygons(loadSvgWorld(sptr)));
         const std::map<std::string, std::function<IDumperPtr()>> factories = {
           // should be same "options" as above in menu

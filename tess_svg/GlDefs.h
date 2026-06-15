@@ -17,8 +17,12 @@ using used_vectors_type = GLdouble;
 
 using GlVertex = Vector2<used_vectors_type, GL_PREC>;
 
-using Vertexes = std::vector<GlVertex>;
-using Loops = std::vector<Vertexes>;
+/// @brief Single polyline.
+using Polyline = std::vector<GlVertex>;
+
+/// @brief Multiply polylines.
+using Loops = std::vector<Polyline>;
+
 using GlContour = std::vector<used_vectors_type>;
 using GlPolygon = std::vector<GlContour>;
 

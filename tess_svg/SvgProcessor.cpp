@@ -17,6 +17,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -95,42 +96,7 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
     }
 }
 
-// Вспомогательная функция для получения всех контуров группы/элемента
-// Это позволяет нам работать с "виртуальными" группами (например, <defs><g>...</g></defs>)
-std::vector<Loops> getAllLoopsFromObject(const SvgGroup &group)
-{
-    std::vector<Loops> all_loops;
-    for (const auto &element : group.elements)
-    {
-        if (!element.isEmpty())
-        {
-            // Если в элементе уже есть Loops, забираем их
-            auto loops = std::get_if<Loops>(&element.data);
-            if (loops)
-            {
-                all_loops.push_back(*loops);
-            }
-            // Примечание: если элемент - Polyline, он не будет добавлен в Union
-            // на этапе подготовки масок/объектов, так как нам нужны только контуры.
-        }
-    }
-    return all_loops;
-}
-
-// Вспомогательная функция для получения "схлопнутого" (Union) объекта по ID из defs
-Loops getUnifiedDefinition(const std::vector<SvgGroup> &defs, const std::string &id)
-{
-    // for (const auto &group : defs)
-    // {
-    //     if (group.id() == id)
-    //     {
-    //         // Если нашли группу или объект - объединяем всё его содержимое в один набор контуров
-    //         return geometry_engine::unionShapes(getAllLoopsFromObject(group));
-    //     }
-    // }
-    return {}; // Не найдено
-}
-
+// Collapses SvgGroups into collection of the Loops (used witn Union).
 std::vector<Loops> collapseGroups(const std::vector<SvgGroup> &groups)
 {
     if (groups.empty())

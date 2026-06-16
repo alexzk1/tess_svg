@@ -29,6 +29,12 @@ class ClipRegistry
     /// @brief Extracts the ID from a "url(#id)" string.
     static std::string extractIdFromUrl(const std::string &url_attr);
 
+    [[nodiscard]]
+    bool empty() const
+    {
+        return cache_.empty();
+    }
+
   protected:
     /**
      * @brief Converts a group and all its elements into a collection of non-overlapping islands.

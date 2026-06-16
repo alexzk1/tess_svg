@@ -6,6 +6,7 @@
 
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/SvgParsers.h"
+#include "tess_svg/clip_registry.hpp"
 #include "tess_svg/geometry_engine.hpp"
 #include "tess_svg/node_transform.hpp"
 #include "tess_svg/processing_data.hpp"
@@ -113,6 +114,11 @@ std::vector<Loops> collapseGroups(const std::vector<SvgGroup> &groups)
     return res;
 }
 
+void setNewElementId(ParsedSvgElement &element, std::size_t index)
+{
+    element.attributes["id"] = std::format("entity_{}", index);
+}
+
 /**
  * @brief Reconstructs a hierarchical structure from flattened topological islands.
  * Each island (set of loops) is treated as a distinct physical entity.
@@ -130,14 +136,14 @@ std::vector<SvgGroup> restoreGroups(std::vector<Loops> islands)
     std::vector<SvgGroup> groups;
     groups.reserve(islands.size());
 
-    for (size_t i = 0; i < islands.size(); ++i)
+    for (std::size_t i = 0; i < islands.size(); ++i)
     {
         // 1. Create the element representing this specific island
         ParsedSvgElement element;
         element.data = std::move(islands[i]); // Type: Loops
 
         // Generate unique ID for the element
-        element.attributes["id"] = std::format("entity_{}", i);
+        setNewElementId(element, i);
 
         // 2. Create a group to wrap this element (maintaining hierarchy integrity)
         SvgGroup group;
@@ -199,42 +205,89 @@ void unionElementsTransformer(SvgWorld &world)
     world.scene = restoreGroups(std::move(loops));
 }
 
-// void clipByDefsTransformer(SvgWorld &world)
-// {
-//     // Мы не меняем defs (сохраняем их для других элементов),
-//     // работаем только со сценой.
-//     for (auto &group : world.scene)
-//     {
-//         for (auto &element : group.elements)
-//         {
-//             if (element.isEmpty())
-//                 continue;
+void clipByDefsTransformer(SvgWorld &world)
+{
+    const ClipRegistry clips(world.defs);
+    if (clips.empty()) [[likely]]
+    {
+        // Nothing to do, no clips were defined in SVG.
+        return;
+    }
 
-//             // Ищем атрибут clip-path="url(#ID)"
-//             const auto it = element.attributes.find("clip-path");
-//             if (it != element.attributes.end() && it->second.find("url(#") != std::string::npos)
-//             {
-//                 std::string id =
-//                   extractIdFromUrl(it->second); // Функция парсинга "url(#id)" -> "id"
+    std::vector<SvgGroup> new_scene;
 
-//                 // 1. Получаем маску (уже объединенную, если это группа)
-//                 Loops mask_loops = getUnifiedDefinition(world.defs, id);
+    for (auto &original_group : world.scene)
+    {
+        SvgGroup processed_group = original_group.cloneNoElements();
 
-//                 if (!mask_loops.empty())
-//                 {
-//                     // 2. Применяем Intersection к геометрии элемента
-//                     auto &current_data = element.data;
-//                     if (std::holds_alternative<Loops>(current_data))
-//                     {
-//                         Loops subject = std::get<Loops>(current_data);
-//                         Loops result = geometry_engine::intersectWithMasks(subject, mask_loops);
-//                         current_data = std::move(result);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
+        for (auto &element : original_group.elements)
+        {
+            if (element.isFinal()) [[unlikely]]
+            {
+                throw std::runtime_error("Cannot clip finalized elements.");
+            }
+            if (element.isEmpty()) [[unlikely]]
+            {
+                throw std::runtime_error("Cannot clip empty element.");
+            }
+
+            const auto it = element.attributes.find("clip-path");
+            if (it != element.attributes.end() && it->second.find("url(#") != std::string::npos)
+            {
+                const std::string id = ClipRegistry::extractIdFromUrl(it->second);
+                const auto mask = clips.findClipperById(id);
+                if (!mask) [[unlikely]]
+                {
+                    throw std::runtime_error("Missing clipping mask was requested: " + id);
+                }
+                const auto subject = getLoopsFromElement(element);
+                if (!subject) [[unlikely]]
+                {
+                    throw std::runtime_error(
+                      "Not possible happened: there are no loops when we need it.");
+                }
+                // Выполняем пересечение. Результат - std::vector<Loops>
+                auto result_islands = geometry_engine::intersectWithMasks(*subject, *mask);
+                if (result_islands.empty())
+                {
+                    // Объект полностью отсечен — ничего не добавляем в группу
+                    continue;
+                }
+                else if (result_islands.size() == 1)
+                {
+                    // Объект остался одним островом - заменяем его данные
+                    ParsedSvgElement new_elem = element;
+                    new_elem.data = std::move(result_islands[0]);
+                    processed_group.elements.emplace_back(std::move(new_elem));
+                }
+                else
+                {
+                    // ОБЪЕКТ РАСЩЕПИЛСЯ!
+                    // Каждый остров становится новым элементом в этой же группе
+                    std::size_t index = 0;
+                    for (auto &island : result_islands)
+                    {
+                        ParsedSvgElement split_elem = element;
+                        setNewElementId(split_elem, index++);
+                        split_elem.data = std::move(island);
+                        processed_group.elements.emplace_back(std::move(split_elem));
+                    }
+                }
+            }
+            else
+            {
+                // --- СЦЕНАРИЙ NO CLIP ---
+                // Если маски нет, оставляем элемент нетронутым и сохраняем в группе.
+                processed_group.elements.push_back(element);
+            }
+        }
+        if (!processed_group.elements.empty())
+        {
+            new_scene.push_back(std::move(processed_group));
+        }
+    }
+    world.scene = std::move(new_scene);
+}
 
 std::optional<Loops> getLoopsFromElement(const ParsedSvgElement &element)
 {

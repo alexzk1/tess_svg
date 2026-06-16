@@ -96,6 +96,13 @@ struct SvgGroup
         return id_;
     }
 
+    /// @brief Clones all fields except elements.
+    [[nodiscard]]
+    SvgGroup cloneNoElements() const
+    {
+        return {id_, {}};
+    }
+
     std::string id_;
     ParsedSvgElements elements;
 };

@@ -7,9 +7,11 @@
 
 #include "processing_data.hpp"
 #include "pugixml.hpp"
+#include "tess_svg/GlDefs.h"
 
 #include <functional>
 #include <istream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -56,5 +58,15 @@ void unionElementsTransformer(SvgWorld &world);
  * If a mask is a group, it will be automatically merged into a single contour before clipping.
  */
 void clipByDefsTransformer(SvgWorld &world);
+
+/// @brief Extracts Loops out of @p element if any. Resolves EvenOdd winding if it had one.
+/// @param element Single ParsedSvgElement object.
+/// @return Loops with resolved Winding if @p element had it or std::nullopt otherwise.
+std::optional<Loops> getLoopsFromElement(const ParsedSvgElement &element);
+
+/// @brief Extracts Loops out of @p group if any. Resolves EvenOdd winding if it had one.
+/// @param group is the group of ParsedSvgElement objects.
+/// @return vector of Loops with resolved Winding when / if contained element had it.
+std::vector<Loops> getLoopsFromGroup(const SvgGroup &group);
 
 #endif // TESSVG_SVGPROCESSOR_H

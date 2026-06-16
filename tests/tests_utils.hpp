@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tess_svg/GlDefs.h"
+#include "tess_svg/clip_registry.hpp"
 #include "tess_svg/processing_data.hpp"
 
 #include <algorithm>
@@ -173,4 +174,11 @@ class TestUtils
     }
 };
 
+/// @brief Public access to methods of ClipRegistry for the tests.
+class ClipRegistryTestPeer : public ClipRegistry
+{
+  public:
+    using ClipRegistry::ClipRegistry;
+    using ClipRegistry::groupToUnifiedIslands;
+};
 } // namespace Test

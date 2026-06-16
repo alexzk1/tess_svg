@@ -15,9 +15,9 @@
 #include <format>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -108,29 +108,9 @@ std::vector<Loops> collapseGroups(const std::vector<SvgGroup> &groups)
 
     for (const auto &group : groups)
     {
-        // Single SVG element, may have couple polylines.
-        for (const auto &el : group.elements)
-        {
-            if (auto *p = std::get_if<Loops>(&el.data))
-            { // 1. Проверяем атрибут fill-rule для этого конкретного элемента
-                const auto it = el.attributes.find("fill-rule");
-                const bool isEvenOdd =
-                  (it != el.attributes.end() && toLower(it->second) == "evenodd");
-                if (isEvenOdd)
-                {
-                    // 2. Если это EvenOdd, мы ОБЯЗАТЕЛЬНО разрешаем его внутреннюю топологию прямо
-                    // сейчас. Эта функция превратит набор контуров с разным направлением в
-                    // корректно ориентированные "острова и дырки".
-                    res.emplace_back(geometry_engine::resolveEvenOddInternalTopology(*p));
-                }
-                else
-                {
-                    // 3. Если правило другое (например, NonZero по умолчанию),
-                    // просто добавляем контуры как есть.
-                    res.emplace_back(*p);
-                }
-            }
-        }
+        auto total = getLoopsFromGroup(group);
+        res.insert(res.end(), std::make_move_iterator(total.begin()),
+                   std::make_move_iterator(total.end()));
     }
     return res;
 }
@@ -257,3 +237,41 @@ void unionElementsTransformer(SvgWorld &world)
 //         }
 //     }
 // }
+
+std::optional<Loops> getLoopsFromElement(const ParsedSvgElement &element)
+{
+    if (auto *p = std::get_if<Loops>(&element.data))
+    {
+        // 1. Проверяем атрибут fill-rule для этого конкретного элемента
+        const auto it = element.attributes.find("fill-rule");
+        const bool isEvenOdd = (it != element.attributes.end() && toLower(it->second) == "evenodd");
+        if (isEvenOdd)
+        {
+            // 2. Если это EvenOdd, мы ОБЯЗАТЕЛЬНО разрешаем его внутреннюю топологию прямо
+            // сейчас. Эта функция превратит набор контуров с разным направлением в
+            // корректно ориентированные "острова и дырки".
+            return geometry_engine::resolveEvenOddInternalTopology(*p);
+        }
+        else
+        {
+            // 3. Если правило другое (например, NonZero по умолчанию),
+            // просто добавляем контуры как есть.
+            return *p;
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<Loops> getLoopsFromGroup(const SvgGroup &group)
+{
+    std::vector<Loops> all_elements_loops;
+    for (const auto &element : group.elements)
+    {
+        if (auto opt = getLoopsFromElement(element))
+        {
+            all_elements_loops.emplace_back(std::move(*opt));
+        }
+        // Do not throw, as it could be gradient, for example. Just pass.
+    }
+    return all_elements_loops;
+}

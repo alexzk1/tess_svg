@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -37,6 +36,22 @@ Clipper2Lib::PathsD toPathsD(const Loops &loops)
         paths.push_back(std::move(path));
     }
     return paths;
+}
+
+Clipper2Lib::PathsD toPathsD(const std::vector<Loops> &shapes)
+{
+    if (shapes.empty())
+    {
+        return {};
+    }
+    Clipper2Lib::PathsD res;
+    for (const auto &shape : shapes)
+    {
+        auto p = toPathsD(shape);
+        res.insert(res.end(), std::make_move_iterator(p.begin()), std::make_move_iterator(p.end()));
+    }
+
+    return res;
 }
 
 Loops fromPathsD(const Clipper2Lib::PathsD &paths)
@@ -70,6 +85,45 @@ void appendClipperPathToPolyline(const Clipper2Lib::PolyPathD &polyPath, Loops &
     }
     totalLoops.emplace_back(std::move(out));
 }
+
+// Рекурсивный обход дерева для сбора островов и их дырок
+// Функция находит все "острова" (Islands) и собирает всё содержимое вокруг них.
+void gatherIslands(const Clipper2Lib::PolyPathD &parentNode, std::vector<Loops> &islands)
+{
+    for (const auto &child : parentNode)
+    { // Проход по всем детям текущего узла
+        if (!child->IsHole())
+        {
+            // НАЙДЕН НОВЫЙ ОСТРОВ! Создаем для него новый объект.
+            Loops current_island;
+
+            // А) Добавляем внешний контур этого острова
+            appendClipperPathToPolyline(*child, current_island);
+
+            // Б) Собираем все ПРЯМЫЕ дырки (holes), принадлежащие этому острову
+            for (const auto &hole : *child)
+            {
+                if (hole->IsHole())
+                {
+                    appendClipperPathToPolyline(*hole, current_island);
+
+                    // ВАЖНО: Если внутри этой дырки есть еще один ОСТРОВ,
+                    // мы должны зайти в него рекурсивно, чтобы создать новый объект.
+                    gatherIslands(*hole, islands);
+                }
+            }
+
+            islands.emplace_back(std::move(current_island));
+        }
+        else
+        {
+            // Если текущий узел — это дырка (но не "дочерняя" для нашего острова),
+            // мы просто идем глубже, чтобы найти остров внутри этой дырки.
+            gatherIslands(*child, islands);
+        }
+    }
+}
+
 } // namespace
 
 std::vector<Loops> unionShapes(const std::vector<Loops> &shapes)
@@ -80,14 +134,7 @@ std::vector<Loops> unionShapes(const std::vector<Loops> &shapes)
     }
 
     // 1. Подготовка: Собираем все контуры в один массив для Clipper
-    Clipper2Lib::PathsD all_subjects;
-    for (const auto &shape : shapes)
-    {
-        auto p = toPathsD(shape);
-        all_subjects.insert(all_subjects.end(), std::make_move_iterator(p.begin()),
-                            std::make_move_iterator(p.end()));
-    }
-
+    const auto all_subjects = toPathsD(shapes);
     // 2. Инициализация Clipper и выполнение Union
     Clipper2Lib::ClipperD clipper(kPrecision);
     clipper.AddSubject(all_subjects); // Используем AddSubject, чтобы сработал внутренний Scale
@@ -97,47 +144,8 @@ std::vector<Loops> unionShapes(const std::vector<Loops> &shapes)
     clipper.Execute(Clipper2Lib::ClipType::Union, Clipper2Lib::FillRule::NonZero, polytree);
 
     std::vector<Loops> islands;
-
-    // 3. Рекурсивный обход дерева для сбора островов и их дырок
-    // Функция находит все "острова" (Islands) и собирает всё содержимое вокруг них.
-    std::function<void(const Clipper2Lib::PolyPathD &)> traverse =
-      [&](const Clipper2Lib::PolyPathD &parentNode) {
-          for (const auto &child : parentNode)
-          { // Проход по всем детям текущего узла
-              if (!child->IsHole())
-              {
-                  // НАЙДЕН НОВЫЙ ОСТРОВ! Создаем для него новый объект.
-                  Loops current_island;
-
-                  // А) Добавляем внешний контур этого острова
-                  appendClipperPathToPolyline(*child, current_island);
-
-                  // Б) Собираем все ПРЯМЫЕ дырки (holes), принадлежащие этому острову
-                  for (const auto &hole : *child)
-                  {
-                      if (hole->IsHole())
-                      {
-                          appendClipperPathToPolyline(*hole, current_island);
-
-                          // ВАЖНО: Если внутри этой дырки есть еще один ОСТРОВ,
-                          // мы должны зайти в него рекурсивно, чтобы создать новый объект.
-                          traverse(*hole);
-                      }
-                  }
-
-                  islands.emplace_back(std::move(current_island));
-              }
-              else
-              {
-                  // Если текущий узел — это дырка (но не "дочерняя" для нашего острова),
-                  // мы просто идем глубже, чтобы найти остров внутри этой дырки.
-                  traverse(*child);
-              }
-          }
-      };
-
     // Запускаем рекурсию от корня (Polytree root)
-    traverse(polytree);
+    gatherIslands(polytree, islands);
     return islands;
 }
 

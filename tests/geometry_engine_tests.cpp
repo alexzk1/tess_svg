@@ -1,5 +1,6 @@
 #include "tess_svg/GlDefs.h"
 #include "tess_svg/geometry_engine.hpp"
+#include "tess_svg/util_helpers.h"
 #include "tests_utils.hpp"
 
 #include <iterator>
@@ -28,8 +29,7 @@ class GeometryEngineTest : public ::testing::Test, public TestUtils
 
     void appendPolylines(Loops &appendTo, Loops what)
     {
-        appendTo.insert(appendTo.end(), std::make_move_iterator(what.begin()),
-                        std::make_move_iterator(what.end()));
+        appendVectors(appendTo, std::move(what));
     }
 
     void appendPolyline(Loops &appendTo, Polyline what)
@@ -69,11 +69,12 @@ TEST_F(GeometryEngineTest, IntersectWithMask)
     const Loops mask = createLoop({{2, 2}, {5, 2}, {5, 5}, {2, 5}});
 
     const std::vector<Loops> masks = {mask};
-    const Loops result = geometry_engine::intersectWithMasks(subject, masks);
+    const auto result = geometry_engine::intersectWithMasks(subject, masks);
+    ASSERT_EQ(result.size(), 1u);
 
     // Результат пересечения — это маленький квадрат (3x3) внутри. Area = 9
     const auto fullArea = calculateTotalLoopsArea(subject);
-    const double area = calculateTotalLoopsArea(result);
+    const double area = calculateTotalLoopsArea(result.front());
     EXPECT_NEAR(area, 9.0, 1e-5);
     EXPECT_LT(area, fullArea);
     EXPECT_EQ(result.size(), 1u);
@@ -85,10 +86,11 @@ TEST_F(GeometryEngineTest, IntersectWithEmptyMasks)
     const Loops subject = createLoop({{0, 0}, {10, 0}, {10, 10}, {0, 10}});
     const std::vector<Loops> empty_masks;
 
-    const Loops result = geometry_engine::intersectWithMasks(subject, empty_masks);
+    const auto result = geometry_engine::intersectWithMasks(subject, empty_masks);
+    ASSERT_EQ(result.size(), 1u);
 
-    EXPECT_EQ(result.size(), 1u);
-    EXPECT_NEAR(calculateTotalLoopsArea(result), calculateTotalLoopsArea(subject), 1e-5);
+    EXPECT_EQ(result.front().size(), 1u);
+    EXPECT_NEAR(calculateTotalLoopsArea(result.front()), calculateTotalLoopsArea(subject), 1e-5);
 }
 
 // 4. Тест: Сложная форма (D-образная фигура через Union)
@@ -208,6 +210,136 @@ TEST_F(GeometryEngineTest, NestedIslandsTest)
     const double areaC = calculateTotalLoopsArea(result[0]); // Должно быть ~16
     EXPECT_NEAR(areaC, 16.0, 1e-5);
     EXPECT_EQ(result[0].size(), 1u) << "Second element should be a single loop.";
+}
+
+// 8. Тест: Пересечение с маской, состоящей из двух раздельных островов (Split Test)
+// Мы проверяем, что если объект пересекается с двумя разрозненными областями,
+// мы получаем два отдельных острова в векторе Loops.
+TEST_F(GeometryEngineTest, IntersectWithMultiIslandMaskSplitsObject)
+{
+    // Объект: Большой прямоугольник (0, 0) -> (10, 10). Area = 100
+    const Loops subject = createLoop({{0, 0}, {10, 0}, {10, 10}, {0, 10}});
+
+    // Маска: Два маленьких квадрата внутри большого rectangle.
+    // Первый: (1,1) -> (2,2). Area = 1
+    // Второй: (8,8) -> (9,9). Area = 1
+    const Loops mask_island1 = createLoop({{1, 1}, {2, 1}, {2, 2}, {1, 2}});
+    const Loops mask_island2 = createLoop({{8, 8}, {9, 8}, {9, 9}, {8, 9}});
+
+    // В Clipper2 Intersection с несколькими объектами в AddClip
+    // даст два раздельных острова. Мы должны получить std::vector из 2-х Loops.
+    const std::vector<Loops> masks = {mask_island1, mask_island2};
+
+    const auto result = geometry_engine::intersectWithMasks(subject, masks);
+
+    // Проверяем количество островов (должно быть 2)
+    ASSERT_EQ(result.size(), 2u);
+
+    // Проверяем площади каждого острова
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 1.0, 1e-5);
+    EXPECT_NEAR(calculateTotalLoopsArea(result[1]), 1.0, 1e-5);
+}
+
+// 9. Тест: Пересечение "Бублика" с прямоугольником (Hole Preservation in Intersection)
+TEST_F(GeometryEngineTest, IntersectWithDonutMaskPreservesHoles)
+{
+    /*
+       Маска: Бублик (Island with a hole).
+       Outer loop: (0,0) -> (10,10). Area = 100.
+       Inner hole: (4,4) -> (6,6). Area = 4.
+    */
+    Loops donut;
+    appendPolylines(donut, createLoop({{0, 0}, {10, 0}, {10, 10}, {0, 10}})); // CCW
+    appendPolylines(donut, createLoop({{4, 5}, {6, 5}, {6, 7}, {4, 7}}));     // CW (дырка)
+    const std::vector<Loops> mask = {geometry_engine::resolveEvenOddInternalTopology(donut)};
+
+    // Объект для пересечения: Прямоугольник, который полностью покрывает бублик
+    const Loops subject = createLoop({{-1, -1}, {11, -1}, {11, 11}, {-1, 11}});
+
+    const auto result = geometry_engine::intersectWithMasks(subject, mask);
+
+    // Ожидаемый результат: Один остров (Loops), содержащий 2 контура (внешний и дырку)
+    ASSERT_EQ(result.size(), 1u) << "Intersection should return exactly one island.";
+    EXPECT_EQ(result[0].size(), 2u) << "The resulting island must still contain its hole.";
+
+    // Площадь должна быть Area(outer) - Area(hole) = 100 - 4 = 96
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 96, 1e-5);
+}
+
+// 10. Тест: Маска больше объекта и полностью его перекрывает (Oversized Mask)
+TEST_F(GeometryEngineTest, IntersectWithOversizedMaskDoesNotChangeSubject)
+{
+    // Объект: Квадрат в центре (5,5) -> (15,15). Area = 100.
+    const Loops subject = createLoop({{5, 5}, {15, 5}, {15, 15}, {5, 15}});
+
+    // Маска: Огромный прямоугольник (-100,-100) -> (200,200).
+    const Loops mask = createLoop({{-100, -100}, {200, -100}, {200, 200}, {-100, 200}});
+
+    const std::vector<Loops> masks = {mask};
+    const auto result = geometry_engine::intersectWithMasks(subject, masks);
+
+    // Результат должен быть идентичен исходному субъекту.
+    ASSERT_EQ(result.size(), 1u) << "Should still be one island.";
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 100.0, 1e-5);
+
+    // Важнейшая проверка: ни одна точка не должна выйти за границы [5, 15]
+    for (const auto &polyline : result[0])
+    {
+        for (const auto &v : polyline)
+        {
+            EXPECT_GE(v.x(), 4.99); // Используем эпсилон для float/double
+            EXPECT_LE(v.x(), 15.01);
+            EXPECT_GE(v.y(), 4.99);
+            EXPECT_LE(v.y(), 15.01);
+        }
+    }
+}
+
+// 11. Тест: Маска разрезает объект пополам (Boundary/Edge Clipping)
+TEST_F(GeometryEngineTest, IntersectWithHalfMaskSplitsSubject)
+{
+    // Объект: Квадрат (0,0) -> (10,10). Area = 100.
+    const Loops subject = createLoop({{0, 0}, {10, 0}, {10, 10}, {0, 10}});
+
+    // Маска: Прямоугольник, который закрывает только левую половину (от -5 до 5 по X)
+    const Loops mask = createLoop({{-5, -5}, {5, -5}, {5, 15}, {-5, 15}});
+
+    const std::vector<Loops> masks = {mask};
+    const auto result = geometry_engine::intersectWithMasks(subject, masks);
+
+    // Ожидаемый результат: Прямоугольник (0,0) -> (5,10). Area = 50.
+    ASSERT_EQ(result.size(), 1u) << "Should produce exactly one rectangle.";
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 50.0, 1e-5);
+
+    // Проверяем границы результата: он должен быть ограничен X=5 и Y={0..10}
+    for (const auto &polyline : result[0])
+    {
+        for (const auto &v : polyline)
+        {
+            EXPECT_GE(v.x(), -0.01); // Граница маски по X может чуть сместиться из-за precision
+            EXPECT_LE(v.x(), 5.01);  // Но не должна выходить дальше линии реза!
+        }
+    }
+}
+
+// 12. Тест: Проверка на точность при очень маленьких пересечениях (Precision Test)
+TEST_F(GeometryEngineTest, IntersectWithTinyOverlap)
+{
+    const Loops subject = createLoop({{0, 0}, {10, 0}, {10, 10}, {0, 10}});
+
+    // Маска: Тонкая полоска (9.9, -1) -> (10.1, 2). Пересечение — крошечный прямоугольник (9.9, 0)
+    // -> (10, 2). Area = 0.4
+    const Loops mask = createLoop({{9.9, -1}, {10.1, -1}, {10.1, 2}, {9.9, 2}});
+
+    const std::vector<Loops> masks = {mask};
+    const auto result = geometry_engine::intersectWithMasks(subject, masks);
+
+    ASSERT_FALSE(result.empty());
+    // Проверяем площадь крошечного сегмента
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 2 * (10 - 9.9), 1e-4);
+    // Rect intersection bounds: X from max(0, 9.9)=9.9 to min(10, 10.1)=10 -> width 0.1.
+    // Y from max(0, -1)=0 to min(10, 2)=2 -> height 2. Area = 0.2.
+    EXPECT_NEAR(calculateTotalLoopsArea(result[0]), 0.2, 1e-4);
 }
 
 } // namespace Test

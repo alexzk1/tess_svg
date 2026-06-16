@@ -18,9 +18,14 @@ std::vector<Loops> unionShapes(const std::vector<Loops> &shapes);
 Loops resolveEvenOddInternalTopology(Loops raw_loops);
 
 /**
- * @brief Intersects the main contour with a list of masks (Clipping).
- * If the masks are represented as a set of loops, they will be processed as a single object.
+ * @brief Intersects the subject with a collection of mask islands (subject will keep parts where
+ * mask is present).
+ *
+ * @param subject The geometry to be clipped (one island).
+ * @param masks  The clipping areas (multiple islands, can represent complex shapes/holes).
+ * @return std::vector<Loops> A collection of resulting islands. An intersection might split one
+ * object into several.
  */
 [[nodiscard]]
-Loops intersectWithMasks(const Loops &subject, const std::vector<Loops> &masks);
+std::vector<Loops> intersectWithMasks(const Loops &subject, const std::vector<Loops> &masks);
 } // namespace geometry_engine

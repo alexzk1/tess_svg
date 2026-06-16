@@ -1,6 +1,7 @@
 #include "geometry_engine.hpp"
 
 #include "tess_svg/GlDefs.h"
+#include "tess_svg/util_helpers.h"
 
 #include <clipper2/clipper.core.h>
 #include <clipper2/clipper.engine.h>
@@ -47,8 +48,7 @@ Clipper2Lib::PathsD toPathsD(const std::vector<Loops> &shapes)
     Clipper2Lib::PathsD res;
     for (const auto &shape : shapes)
     {
-        auto p = toPathsD(shape);
-        res.insert(res.end(), std::make_move_iterator(p.begin()), std::make_move_iterator(p.end()));
+        appendVectors(res, toPathsD(shape));
     }
 
     return res;
@@ -144,28 +144,44 @@ std::vector<Loops> unionShapes(const std::vector<Loops> &shapes)
     clipper.Execute(Clipper2Lib::ClipType::Union, Clipper2Lib::FillRule::NonZero, polytree);
 
     std::vector<Loops> islands;
+    islands.reserve(polytree.Count() + 1u);
     // Запускаем рекурсию от корня (Polytree root)
     gatherIslands(polytree, islands);
     return islands;
 }
 
-Loops intersectWithMasks(const Loops &subject, const std::vector<Loops> &masks)
+std::vector<Loops> intersectWithMasks(const Loops &subject, const std::vector<Loops> &masks)
 {
+    if (subject.empty())
+    {
+        return {};
+    }
+    // If no mask - then do Identity.
     if (masks.empty())
     {
-        return subject;
-    }
-    const Clipper2Lib::PathsD subjectPath = toPathsD({subject});
-    Clipper2Lib::PathsD maskPaths;
-    for (const auto &m : masks)
-    {
-        auto p = toPathsD(m);
-        maskPaths.insert(maskPaths.end(), p.begin(), p.end());
+        return {subject};
     }
 
-    const auto result =
-      Clipper2Lib::Intersect(subjectPath, maskPaths, Clipper2Lib::FillRule::NonZero, kPrecision);
-    return fromPathsD(result);
+    Clipper2Lib::ClipperD clipper(kPrecision);
+
+    // 1. Добавляем Subject (наш объект) как основной контур для резки
+    clipper.AddSubject(toPathsD(subject));
+
+    // 2. Добавляем Mask (все острова маски) как Clip-объект
+    // Clipper объединит все пути в AddClip автоматически перед операцией Intersection
+    clipper.AddClip(toPathsD(masks));
+
+    Clipper2Lib::PolyTreeD polytree;
+
+    // 3. Выполняем пересечение. NonZero здесь оптимален для работы с уже разрешенной топологией.
+    clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::NonZero, polytree);
+
+    std::vector<Loops> result_islands;
+    result_islands.reserve(polytree.Count() + 1u);
+    // 4. Используем gatherIslands для восстановления структуры островов и дырок
+    gatherIslands(polytree, result_islands);
+
+    return result_islands;
 }
 
 Loops resolveEvenOddInternalTopology(Loops raw_loops)

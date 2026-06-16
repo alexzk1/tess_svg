@@ -108,9 +108,7 @@ std::vector<Loops> collapseGroups(const std::vector<SvgGroup> &groups)
 
     for (const auto &group : groups)
     {
-        auto total = getLoopsFromGroup(group);
-        res.insert(res.end(), std::make_move_iterator(total.begin()),
-                   std::make_move_iterator(total.end()));
+        appendVectors(res, getLoopsFromGroup(group));
     }
     return res;
 }

@@ -3,10 +3,11 @@
 #include "tess_svg/processing_data.hpp"
 #include "tests_utils.hpp"
 
+#include <cstddef>
 #include <cstdlib>
-#include <format>
 #include <numbers>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -616,6 +617,226 @@ TEST_F(SvgIntegrationTest, OuterBoundaryIntegrityWithInternalTriangularHole)
        Если результат > 100, значит возникло паразитное расширение геометрии.
     */
     EXPECT_NEAR(actualHullArea, expectedHullArea, 1e-4);
+}
+
+// 14. Тест: Базовое отсечение маской (Intersection)
+TEST_F(SvgIntegrationTest, ClipByDefBasicIntersection)
+{
+    /*
+       Объект: Прямоугольник (0,0) -> (10,10). Area = 100.
+       Маска в <defs>: Квадрат (2,2) -> (5,5). Area = 9.
+       Ожидаемый результат: Маленький квадрат внутри (Area = 9).
+    */
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <rect id="mask1" x="2" y="2" width="3" height="3"/>
+            </defs>
+            <rect x="0" y="0" width="10" height="10" clip-path="url(#mask1)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&clipByDefsTransformer)
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    // Проверяем, что в мире остался объект с площадью 9
+    ASSERT_FALSE(final_world.scene.empty());
+    const double total_area = calculateTotalWorldArea(final_world);
+    EXPECT_NEAR(total_area, 9.0, 1e-4);
+}
+
+// 15. Тест: Разрезание объекта на две части (Object Splitting)
+TEST_F(SvgIntegrationTest, ClipByDefSplitsOneElementIntoTwo)
+{
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <!-- Маска из двух разрозненных частей -->
+                <g id="split_mask">
+                   <rect x="0" y="0" width="4" height="10"/> <!-- Левая часть объекта -->
+                   <rect x="6" y="0" width="4" height="10"/> <!-- Правая часть объекта -->
+                </g>
+            </defs>
+            <!-- Объект: (0,0) -> (10, 10). Area = 100. Заливаем всё под mask "split_mask" -->
+            <rect x="0" y="0" width="10" height="10" clip-path="url(#split_mask)"/>
+        </svg>)svg";
+
+    // При применении маски 'split_mask', прямоугольник (0,0)-(10,10) должен превратиться в два
+    // независимых элемента: (0,0)-(4,10) и (6,0)-(10,10).
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&clipByDefsTransformer)
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    // Проверяем: в сцене должно появиться больше элементов (или площадь должна соответствовать двум
+    // кускам) Если наша реализация split-логики работает, то мы должны увидеть два разных
+    // элемента/острова.
+    const double total_area = calculateTotalWorldArea(final_world);
+    EXPECT_NEAR(total_area, 80.0, 1e-4); // (4*10) + (4*10) = 80
+
+    // Проверяем количество объектов: в нашей реализации split превращает один элемент в два разных
+    // объекта в группе/сцене
+    std::size_t total_elements = 0u;
+    for (const auto &group : final_world.scene)
+    {
+        total_elements += group.elements.size();
+    }
+    EXPECT_GE(total_elements, 2u) << "Object should have been split into at least 2 elements.";
+}
+
+TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHoles)
+{
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <path id="donut_mask" clip-rule="evenodd" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+            </defs>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(&clipByDefsTransformer)
+                    .addTransformer([](SvgWorld &w) {
+                        EXPECT_TRUE(hasHole(w));
+                        EXPECT_NEAR(calculateSignedGroupArea(w.scene), 96.0, 1e-4)
+                          << "The clipped object should have the area of the donut (100 - 4).";
+                    })
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+    // Note, we cannot test final polygon's area because it has a hole and tesselator does "wrong"
+    // area as result (tests' math cannot account it properly easy). That's why we had to add
+    // lambda-transformer before it.
+}
+
+TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesNestedTagClipPath)
+{
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <clipPath>
+                  <path id="donut_mask" clip-rule="evenodd" fill-rule="inherit" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+                </clipPath>
+            </defs>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(&clipByDefsTransformer)
+                    .addTransformer([](SvgWorld &w) {
+                        EXPECT_TRUE(hasHole(w));
+                        EXPECT_NEAR(calculateSignedGroupArea(w.scene), 96.0, 1e-4)
+                          << "The clipped object should have the area of the donut (100 - 4).";
+                    })
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+}
+
+TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesTagClipPath)
+{
+    const std::string svg = R"svg(
+        <svg>
+            <clipPath>
+                <path id="donut_mask" fill-rule="evenodd" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+            </clipPath>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(&clipByDefsTransformer)
+                    .addTransformer([](SvgWorld &w) {
+                        EXPECT_TRUE(hasHole(w));
+                        EXPECT_NEAR(calculateSignedGroupArea(w.scene), 96.0, 1e-4)
+                          << "The clipped object should have the area of the donut (100 - 4).";
+                    })
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+}
+
+TEST_F(SvgIntegrationTest, ClipInheritIsNotSupported)
+{
+    {
+        const std::string svg = R"svg(
+        <svg>
+            <clipPath>
+                <path id="donut_mask" clip-rule="inherit" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+            </clipPath>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+        std::stringstream ss(svg);
+        auto w = loadSvgWorld(ss);
+        EXPECT_THROW(clipByDefsTransformer(w), std::runtime_error);
+    }
+    {
+        const std::string svg = R"svg(
+        <svg>
+            <clipPath>
+                <path id="donut_mask" fill-rule="inherit" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+            </clipPath>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+        std::stringstream ss(svg);
+        auto w = loadSvgWorld(ss);
+        EXPECT_THROW(clipByDefsTransformer(w), std::runtime_error);
+    }
+}
+
+TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesShifted)
+{
+    /*
+    Тело фигуры (X от 2 до 5)
+      +---------+
+      |         |
+      |    +----+  <-- Вход в бывшую дырку (X=4)
+      |    |
+      |    +----+  <-- Граница клиппирования (X=5)
+      |         |
+      +---------+
+    */
+    const std::string svg = R"svg(
+    <svg>
+        <defs>
+            <path id="donut_mask" fill-rule="evenodd" d="M 2 -2 L 12 0 L 12 8 L 2 6 Z M 4 2 L 6 2 L 6 4 L 4 4 Z"/>
+        </defs>
+        <rect x="0" y="0" width="5" height="10" clip-path="url(#donut_mask)"/>
+    </svg>)svg";
+
+    std::stringstream ss(svg);
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(&clipByDefsTransformer)
+                    .addTransformer([](SvgWorld &w) {
+                        EXPECT_FALSE(hasHole(w)) << "Hole had to become slice.";
+                        EXPECT_NEAR(calculateSignedGroupArea(w.scene), 16.9, 1e-4)
+                          << "The clipped object should have the area of the donut (100 - 4).";
+                    })
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+}
+
+TEST_F(SvgIntegrationTest, ClipWithBoundaryMaskNoPhantomParts)
+{
+    /*
+       Объект: Квадрат (5,5) -> (10,10). Area = 25.
+       Маска: Прямоугольник (-10,-10) -> (100,100). Полностью покрывает объект.
+       Ожидание: Объект остается идентичным (Area 25), никаких "фантомных" выступов за границу
+       объекта не должно быть.
+    */
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <rect id="big_mask" x="-10" y="-10" width="200" height="200"/>
+            </defs>
+            <rect x="5" y="5" width="5" height="5" clip-path="url(#big_mask)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    const auto final_world = SvgWorldTransformers()
+                               .addTransformer(&clipByDefsTransformer)
+                               .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    ASSERT_FALSE(final_world.scene.empty());
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 25.0, 1e-4);
 }
 
 } // namespace Test

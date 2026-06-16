@@ -127,6 +127,36 @@ class TestUtils
         return std::abs(area) / 2.0;
     }
 
+    static double calculateSignedGroupArea(const std::vector<SvgGroup> &scene)
+    {
+        double totalSignedArea = 0.0;
+        for (const auto &group : scene)
+        {
+            for (const auto &element : group.elements)
+            {
+                // Проверяем данные, если они уже превращены в Loops или Polyline
+                if (std::holds_alternative<Loops>(element.data))
+                {
+                    const auto &loops = std::get<Loops>(element.data);
+                    for (const auto &loop : loops)
+                    {
+                        // Важно: calculatePolygonArea должен возвращать ЗНАКОВУЮ площадь!
+                        const double a = TestUtils::calculatePolygonArea(loop);
+                        totalSignedArea += a;
+                    }
+                }
+                else if (std::holds_alternative<Polyline>(element.data))
+                {
+                    // Если это одна полилиния, она может представлять дырку только через мостик.
+                    // Но наш hasHole ориентирован на поиск топологических дырок в объекте-острове.
+                    ADD_FAILURE()
+                      << "You cannot test tesselated output as it does not support holes itself.";
+                }
+            }
+        }
+        return totalSignedArea;
+    }
+
     /// @brief Checks if Loops has holes (can be used from SvgWorldTransformers() prior
     /// finalization!).
     /// @note It will not work for non-processed single `path` with evenodd rule. It must be
@@ -134,7 +164,12 @@ class TestUtils
     /// unionElementsTransformer().
     static bool hasHole(const SvgWorld &world)
     {
-        for (const auto &group : world.scene)
+        return hasHole(world.scene);
+    }
+
+    static bool hasHole(const std::vector<SvgGroup> &scene)
+    {
+        for (const auto &group : scene)
         {
             for (const auto &element : group.elements)
             {

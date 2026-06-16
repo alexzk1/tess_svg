@@ -15,7 +15,7 @@
 #include <cstddef>
 #include <format>
 #include <iostream>
-#include <iterator>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace {
+
+constexpr auto kDefsRecursionZero = std::numeric_limits<std::size_t>::max() / 2;
 
 struct RecursionParameters
 {
@@ -39,9 +41,10 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
     if (parser.isSupported())
     {
         // Bottom of the recursion - single node which cannot have children.
-        if (0u == recursionLevel) [[unlikely]]
+        if (0u == recursionLevel || kDefsRecursionZero == recursionLevel) [[unlikely]]
         {
-            throw std::runtime_error("SVG is broken. Root object must be <svg>.");
+            throw std::runtime_error(
+              "SVG is broken. Root object must be <svg> or <defs> or <clipPath>.");
         }
         params.singleNodeLoops = parser.parse(params.parentTrans);
     }
@@ -59,6 +62,7 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
         updateTransform(node, childrenParams.parentTrans);
 
         bool hadDef = false; // strings optimization
+        bool hadClipPath = false;
         for (pugi::xml_node childNode = node.first_child(); childNode;
              childNode = childNode.next_sibling())
         {
@@ -71,9 +75,24 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
                 SvgWorld tmp;
                 RecursionParameters defsRecursion{};
                 // Passing <defs> node itself as it would be <svg>.
-                parseSvgWorld(tmp, 0u, childNode, defsRecursion);
+                parseSvgWorld(tmp, kDefsRecursionZero, childNode, defsRecursion);
                 // Treating <defs> as new <svg> in terms of geometry elements.
-                output.defs = std::move(tmp.scene);
+                appendVectors(output.defs, std::move(tmp.scene));
+                continue;
+            }
+            if (!hadClipPath && NodeParser::nodeName(childNode) == "clippath") [[unlikely]]
+            {
+                // 1 <clipPath> per 1 <svg> is expected.
+                hadClipPath = true;
+                SvgWorld tmp;
+                RecursionParameters defsRecursion{};
+                parseSvgWorld(tmp, kDefsRecursionZero, childNode, defsRecursion);
+                if (recursionLevel >= kDefsRecursionZero) [[unlikely]]
+                {
+                    // Case of <defs><clipPath></clipPath></defs>
+                    appendVectors(output.scene, tmp.scene);
+                }
+                appendVectors(output.defs, std::move(tmp.scene));
                 continue;
             }
             childrenParams.singleNodeLoops.clear();
@@ -90,8 +109,18 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
                     output.scene.emplace_back(SvgGroup{tess.id(), {}});
                 }
 
+                const auto providedLoopsSize = childrenParams.singleNodeLoops.size();
+
                 tess.data = std::move(childrenParams.singleNodeLoops);
                 output.scene.back().elements.emplace_back(std::move(tess));
+
+                // This is to ensure debuger lies and code is ok, debugger reports variant as not
+                // set.
+                auto *loops = std::get_if<Loops>(&output.scene.back().elements.back().data);
+                if (!loops || loops->size() != providedLoopsSize) [[unlikely]]
+                {
+                    throw std::runtime_error("Missed data!");
+                }
             }
         }
     }
@@ -293,9 +322,32 @@ std::optional<Loops> getLoopsFromElement(const ParsedSvgElement &element)
 {
     if (auto *p = std::get_if<Loops>(&element.data))
     {
-        // 1. Проверяем атрибут fill-rule для этого конкретного элемента
-        const auto it = element.attributes.find("fill-rule");
-        const bool isEvenOdd = (it != element.attributes.end() && toLower(it->second) == "evenodd");
+        // 1. Пытаемся найти clip-rule, если его нет — ищем fill-rule
+        std::string ruleValue = "nonzero"; // Дефолт по спецификации SVG
+
+        auto it = element.attributes.find("clip-rule");
+        if (it != element.attributes.end())
+        {
+            ruleValue = toLower(it->second);
+        }
+        else
+        {
+            it = element.attributes.find("fill-rule");
+            if (it != element.attributes.end())
+            {
+                ruleValue = toLower(it->second);
+            }
+        }
+
+        // 2. Обработка неподдерживаемого inherit
+        if (ruleValue == "inherit")
+        {
+            throw std::runtime_error(
+              "getLoopsFromElement error: 'inherit' for clip-rule/fill-rule is not supported.");
+        }
+
+        // 3. Определяем финальный режим для вашего геометрического движка
+        const bool isEvenOdd = (ruleValue == "evenodd");
         if (isEvenOdd)
         {
             // 2. Если это EvenOdd, мы ОБЯЗАТЕЛЬНО разрешаем его внутреннюю топологию прямо

@@ -2,7 +2,7 @@
 
 pkgname=tess_svg
 pkgver=0.8.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Translates SVG file into vertexes collections."
 
 provides=('tess_svg')
@@ -33,7 +33,6 @@ package() {
   cd $srcdir/tess_svg/build
   install -D -m755 tess_svg $pkgdir/usr/bin/tess_svg
   install -d $pkgdir/usr/share/tess_svg
-  cp $srcdir/tess_svg/generated_support/*.* $pkgdir/usr/share/tess_svg
 
   install -D -m644 $srcdir/tess_svg/LICENSE $pkgdir/usr/share/licenses/tess_svg/LICENSE
   install -D -m644 $srcdir/tess_svg/build/LEGAL.txt $pkgdir/usr/share/licenses/tess_svg/LEGAL

@@ -6,11 +6,21 @@
 
 #include <pugixml.hpp>
 
+#include <concepts>
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
+
+template <typename T>
+concept HasAttributesMap = requires(T t) {
+    t.attributes;
+    {
+        t.attributes.find(std::declval<std::string>())
+    } -> std::same_as<decltype(t.attributes.end())>;
+};
 
 /// @brief Prepared SVG. Each element is converted into polygon and translated into World space.
 /// It is produced by SvgProcessor.
@@ -39,7 +49,7 @@ struct ParsedSvgElement
     }
 
     /// @brief Given ID of the SVG element if any.
-    /// @returns Original `id` of the SVG element or it's name.
+    /// @returns Original `id` of the SVG element.
     /// @throws If attribut ID was not set.
     [[nodiscard]]
     const std::string &id() const
@@ -85,27 +95,64 @@ struct ParsedSvgElement
     GeometricalData data{std::monostate{}};
 };
 
+static_assert(HasAttributesMap<ParsedSvgElement>);
+
 using ParsedSvgElements = std::vector<ParsedSvgElement>;
 
 /// @brief Represents named SVG group.
 struct SvgGroup
 {
+    /// @brief Attributes setter.
+    /// Ensures all attribute names are lowercased.
+    /// If it is missing ID then sets it to element name.
+    void setAttributes(const pugi::xml_node &node)
+    {
+        attributes.clear();
+
+        for (auto attr = node.attributes_begin(); attr != node.attributes_end(); attr++)
+        {
+            attributes[std::string(toLower(attr->name()))] = std::string(attr->as_string());
+        }
+        const auto it = attributes.find("id");
+        if (it == attributes.end())
+        {
+            attributes["id"] = node.name();
+        }
+    }
+
+    /// @brief ID of the SVG group if any.
+    /// @returns Original `id` of the SVG group or it's given id.
+    /// @note Id can be declared in SVG or automatically assigned for "fake C++ groups".
     [[nodiscard]]
     const std::string &id() const
     {
-        return id_;
+        const auto it = attributes.find("id");
+        if (it != attributes.end())
+        {
+            return it->second;
+        }
+        if (!id_.empty())
+        {
+            return id_;
+        }
+        static const std::string kDefName = "group_";
+        return kDefName;
     }
 
     /// @brief Clones all fields except elements.
     [[nodiscard]]
     SvgGroup cloneNoElements() const
     {
-        return {id_, {}};
+        return {id_, {}, attributes};
     }
 
     std::string id_;
     ParsedSvgElements elements;
+    /// @brief name=value attributes from original element `g` in SVG.
+    std::map<std::string, std::string> attributes;
 };
+
+static_assert(HasAttributesMap<SvgGroup>);
 
 /// @brief All SVG groups (single root element becomes 1 group with 1 element) and geometrical data
 /// from <defs>.

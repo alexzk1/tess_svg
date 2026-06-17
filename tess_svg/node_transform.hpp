@@ -115,17 +115,42 @@ inline const auto &getTransformParsers()
                           return;
                       }
 
-                      // В SVG углы в градусах, а sin/cos в радианах
-                      const double angle = std::stod(*b++) * (std::numbers::pi / 180.0); // NOLINT
+                      const double angle = std::stod(*b++);
+                      double cx = 0.0;
+                      double cy = 0.0;
+
+                      // Пытаемся прочитать дополнительные параметры (cx, cy), если они есть
+                      if (b != end && !b->str().empty())
+                      { // Проверка на наличие следующего токена
+                          try
+                          {
+                              cx = std::stod(*b++);
+                              if (b != end)
+                              {
+                                  cy = std::stod(*b++);
+                              }
+                          }
+                          catch (...)
+                          {
+                              // Если это не числа, возвращаемся в начало для этого вызова (или
+                              // обрабатываем ошибку) Но для простоты считаем, что если параметры
+                              // есть - они числовые
+                          }
+                      }
+
+                      const double rad = angle * (std::numbers::pi_v<double> / 180.0);
+                      const auto sc = mymath::sincos(rad);
 
                       GlVertex::trans_matrix_t temp = GlVertex::getIdentity();
-                      const auto sc = mymath::sincos(angle);
+                      // Матрица: T(cx, cy) * R(theta) * T(-cx, -cy)
                       temp(0, 0) = sc.cos;
                       temp(0, 1) = -sc.sin;
+                      temp(0, 2) = cx * (1 - sc.cos) + cy * sc.sin;
                       temp(1, 0) = sc.sin;
                       temp(1, 1) = sc.cos;
+                      temp(1, 2) = cy * (1 - sc.cos) - cx * sc.sin;
 
-                      m = prod(m, temp);
+                      m = prod(m, temp); // Применяем к текущей матрице трансформации
                   }),
     };
     return transforms;

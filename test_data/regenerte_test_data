@@ -5,3 +5,4 @@
 ../build/Desktop-Debug/tess_svg -i zeppelin_top.svg -J --epoints 128 --bflatness 0.5 -o zeppelin_expected_top.json
 ../build/Desktop-Debug/tess_svg -i F.svg -J --epoints 128 --bflatness 0.5 -o F.json
 ../build/Desktop-Debug/tess_svg -i bezier.svg -J --epoints 128 --bflatness 0.5 -o bezier.json
+../build/Desktop-Debug/tess_svg -i clipping.svg -J --epoints 128 --bflatness 0.5 -o clipping.json

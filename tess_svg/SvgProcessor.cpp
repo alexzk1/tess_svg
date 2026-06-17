@@ -27,6 +27,17 @@ namespace {
 
 constexpr auto kDefsRecursionZero = std::numeric_limits<std::size_t>::max() / 2;
 
+template <HasAttributesMap taObject>
+std::optional<std::string> getClipPathId(const taObject &obj)
+{
+    const auto it = obj.attributes.find("clip-path");
+    if (it != obj.attributes.end() && it->second.find("url(#") != std::string::npos)
+    {
+        return ClipRegistry::extractIdFromUrl(it->second);
+    }
+    return std::nullopt;
+}
+
 struct RecursionParameters
 {
     GlVertex::trans_matrix_t parentTrans = GlVertex::getIdentity();
@@ -55,9 +66,12 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
         if (groupped)
         {
             // Result will have group with multiply results.
-            output.scene.emplace_back(SvgGroup{parentId, {}});
+            SvgGroup g{parentId, {}, {}};
+            g.setAttributes(node);
+            output.scene.emplace_back(std::move(g));
         }
 
+        // Combined parents' transformation.
         RecursionParameters childrenParams{params.parentTrans};
         updateTransform(node, childrenParams.parentTrans);
 
@@ -106,7 +120,7 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
                 {
                     // <svg><rect/></svg> case.
                     // Result will have 1 "group" which will have 1 element.
-                    output.scene.emplace_back(SvgGroup{tess.id(), {}});
+                    output.scene.emplace_back(SvgGroup{tess.id(), {}, {}});
                 }
 
                 const auto providedLoopsSize = childrenParams.singleNodeLoops.size();
@@ -177,12 +191,79 @@ std::vector<SvgGroup> restoreGroups(std::vector<Loops> islands)
         // 2. Create a group to wrap this element (maintaining hierarchy integrity)
         SvgGroup group;
         group.id_ = std::format("grp_{}", i);
-        group.elements.push_back(std::move(element));
+        group.elements.emplace_back(std::move(element));
 
-        groups.push_back(std::move(group));
+        groups.emplace_back(std::move(group));
     }
 
     return groups;
+}
+
+template <typename taCallable>
+SvgGroup clipGroupElements(const ClipRegistry &clips, const SvgGroup &original_group,
+                           const taCallable &clipIdProvider)
+{
+    SvgGroup processed_group = original_group.cloneNoElements();
+
+    for (auto &element : original_group.elements)
+    {
+        if (element.isFinal()) [[unlikely]]
+        {
+            throw std::runtime_error("Cannot clip finalized elements.");
+        }
+        if (element.isEmpty()) [[unlikely]]
+        {
+            throw std::runtime_error("Cannot clip empty element.");
+        }
+        if (const auto id = clipIdProvider(element))
+        {
+            const auto mask = clips.findClipperById(*id);
+            if (!mask) [[unlikely]]
+            {
+                throw std::runtime_error("Missing clipping mask was requested: " + *id);
+            }
+            const auto subject = getLoopsFromElement(element);
+            if (!subject) [[unlikely]]
+            {
+                throw std::runtime_error(
+                  "Not possible happened: there are no loops when we need it.");
+            }
+            // Выполняем пересечение. Результат - std::vector<Loops>
+            auto result_islands = geometry_engine::intersectWithMasks(*subject, *mask);
+            if (result_islands.empty())
+            {
+                // Объект полностью отсечен — ничего не добавляем в группу
+                continue;
+            }
+            else if (result_islands.size() == 1)
+            {
+                // Объект остался одним островом - заменяем его данные
+                ParsedSvgElement new_elem = element;
+                new_elem.data = std::move(result_islands[0]);
+                processed_group.elements.emplace_back(std::move(new_elem));
+            }
+            else
+            {
+                // ОБЪЕКТ РАСЩЕПИЛСЯ!
+                // Каждый остров становится новым элементом в этой же группе
+                std::size_t index = 0;
+                for (auto &island : result_islands)
+                {
+                    ParsedSvgElement split_elem = element;
+                    setNewElementId(split_elem, index++);
+                    split_elem.data = std::move(island);
+                    processed_group.elements.emplace_back(std::move(split_elem));
+                }
+            }
+        }
+        else
+        {
+            // --- СЦЕНАРИЙ NO CLIP ---
+            // Если маски нет, оставляем элемент нетронутым и сохраняем в группе.
+            processed_group.elements.push_back(element);
+        }
+    }
+    return processed_group;
 }
 
 } // namespace
@@ -247,68 +328,17 @@ void clipByDefsTransformer(SvgWorld &world)
 
     for (auto &original_group : world.scene)
     {
-        SvgGroup processed_group = original_group.cloneNoElements();
-
-        for (auto &element : original_group.elements)
+        // Apply clipping defined for each element.
+        SvgGroup processed_group = clipGroupElements(clips, original_group, [](auto &element) {
+            return getClipPathId(element);
+        });
+        if (!processed_group.elements.empty())
         {
-            if (element.isFinal()) [[unlikely]]
-            {
-                throw std::runtime_error("Cannot clip finalized elements.");
-            }
-            if (element.isEmpty()) [[unlikely]]
-            {
-                throw std::runtime_error("Cannot clip empty element.");
-            }
-
-            const auto it = element.attributes.find("clip-path");
-            if (it != element.attributes.end() && it->second.find("url(#") != std::string::npos)
-            {
-                const std::string id = ClipRegistry::extractIdFromUrl(it->second);
-                const auto mask = clips.findClipperById(id);
-                if (!mask) [[unlikely]]
-                {
-                    throw std::runtime_error("Missing clipping mask was requested: " + id);
-                }
-                const auto subject = getLoopsFromElement(element);
-                if (!subject) [[unlikely]]
-                {
-                    throw std::runtime_error(
-                      "Not possible happened: there are no loops when we need it.");
-                }
-                // Выполняем пересечение. Результат - std::vector<Loops>
-                auto result_islands = geometry_engine::intersectWithMasks(*subject, *mask);
-                if (result_islands.empty())
-                {
-                    // Объект полностью отсечен — ничего не добавляем в группу
-                    continue;
-                }
-                else if (result_islands.size() == 1)
-                {
-                    // Объект остался одним островом - заменяем его данные
-                    ParsedSvgElement new_elem = element;
-                    new_elem.data = std::move(result_islands[0]);
-                    processed_group.elements.emplace_back(std::move(new_elem));
-                }
-                else
-                {
-                    // ОБЪЕКТ РАСЩЕПИЛСЯ!
-                    // Каждый остров становится новым элементом в этой же группе
-                    std::size_t index = 0;
-                    for (auto &island : result_islands)
-                    {
-                        ParsedSvgElement split_elem = element;
-                        setNewElementId(split_elem, index++);
-                        split_elem.data = std::move(island);
-                        processed_group.elements.emplace_back(std::move(split_elem));
-                    }
-                }
-            }
-            else
-            {
-                // --- СЦЕНАРИЙ NO CLIP ---
-                // Если маски нет, оставляем элемент нетронутым и сохраняем в группе.
-                processed_group.elements.push_back(element);
-            }
+            // Now apply group wide clipping.
+            processed_group = clipGroupElements(clips, processed_group,
+                                                [id = getClipPathId(processed_group)](auto &) {
+                                                    return id;
+                                                });
         }
         if (!processed_group.elements.empty())
         {

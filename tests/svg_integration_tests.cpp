@@ -839,4 +839,96 @@ TEST_F(SvgIntegrationTest, ClipWithBoundaryMaskNoPhantomParts)
     EXPECT_NEAR(calculateTotalWorldArea(final_world), 25.0, 1e-4);
 }
 
+TEST_F(SvgIntegrationTest, ClipAndUnion)
+{
+    const std::string svg = R"svg(
+        <svg xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg"
+            height="30" width="140" >
+            <rect id="transp" ry="0" width="140" rx="0" y="0" height="30" x="0" fill="transparent" />
+            <defs>
+                <rect width="140" y="0" height="30" x="0" id="paddle_clip"/>
+            </defs>
+            <rect id="yellow" width="140" y="0" height="30" x="0" fill="#c0c0c0" />
+            <g clip-path="url(#paddle_clip)" id="ribbons">
+                <rect transform="rotate(-45, -99.704, 15.0)" width="420" y="-15.0" height="12.0" x="-309.704" fill="#EBC401" />
+                <rect transform="rotate(-45, -65.7632, 15.0)" width="420" y="-15.0" height="12.0" x="-275.7632" fill="#D8B102" />
+                <rect transform="rotate(-45, -31.8224, 15.0)" width="420" y="-15.0" height="12.0" x="-241.8224" fill="#C59E04" />
+                <rect transform="rotate(-45, 2.1184, 15.0)" width="420" y="-15.0" height="12.0" x="-207.8816" fill="#B18B05" />
+                <rect transform="rotate(-45, 36.0592, 15.0)" width="420" y="-15.0" height="12.0" x="-173.9408" fill="#9E7806" />
+                <rect transform="rotate(-45, 70.0, 15.0)" width="420" y="-15.0" height="12.0" x="-140.0" fill="#8B6508" />
+                <rect transform="rotate(-45, 103.9408, 15.0)" width="420" y="-15.0" height="12.0" x="-106.0592" fill="#9E7806" />
+                <rect transform="rotate(-45, 137.8816, 15.0)" width="420" y="-15.0" height="12.0" x="-72.1184" fill="#B18B05" />
+                <rect transform="rotate(-45, 171.8224, 15.0)" width="420" y="-15.0" height="12.0" x="-38.1776" fill="#C59E04" />
+                <rect transform="rotate(-45, 205.7632, 15.0)" width="420" y="-15.0" height="12.0" x="-4.2368" fill="#D8B102" />
+                <rect transform="rotate(-45, 239.704, 15.0)" width="420" y="-15.0" height="12.0" x="29.704" fill="#EBC401" />
+                <rect transform="rotate(-45, 273.6448, 15.0)" width="420" y="-15.0" height="12.0" x="63.6448" fill="#FFD700" />
+                <rect transform="rotate(-45, 307.5856, 15.0)" width="420" y="-15.0" height="12.0" x="97.5856" fill="#EBC401" />
+                <rect transform="rotate(-45, 341.5264, 15.0)" width="420" y="-15.0" height="12.0" x="131.5264" fill="#D8B102" />
+                <rect transform="rotate(-45, 375.4672, 15.0)" width="420" y="-15.0" height="12.0" x="165.4672" fill="#C59E04" />
+                <rect transform="rotate(-45, 409.408, 15.0)" width="420" y="-15.0" height="12.0" x="199.408" fill="#B18B05" />
+                <rect transform="rotate(-45, 443.3488, 15.0)" width="420" y="-15.0" height="12.0" x="233.3488" fill="#9E7806" />
+                <rect transform="rotate(-45, 477.2896, 15.0)" width="420" y="-15.0" height="12.0" x="267.2896" fill="#8B6508" />
+                <rect transform="rotate(-45, 511.2304, 15.0)" width="420" y="-15.0" height="12.0" x="301.2304" fill="#9E7706" />
+                <rect transform="rotate(-45, 545.1712, 15.0)" width="420" y="-15.0" height="12.0" x="335.1712" fill="#B18B05" />
+                <rect transform="rotate(-45, 579.112, 15.0)" width="420" y="-15.0" height="12.0" x="369.112" fill="#C59E04" />
+            </g>
+        </svg>
+       )svg";
+
+    const auto validatePolyline = [](const Polyline &poly, const std::string &stage) {
+        for (const auto &vertex : poly)
+        {
+            // Проверяем, что ни одна вершина не вылетела за границы маски [0, 140]
+            // x [0, 30]
+            EXPECT_GE(vertex.x(), -1e-5) << "Vertex X below mask boundary at " << stage;
+            EXPECT_LE(vertex.x(), 140.0 + 1e-5) << "Vertex X above mask boundary at " << stage;
+            EXPECT_GE(vertex.y(), -1e-5) << "Vertex Y below mask boundary at " << stage;
+            EXPECT_LE(vertex.y(), 30.0 + 1e-5) << "Vertex Y above mask boundary at " << stage;
+        }
+    };
+
+    const auto validateCoordinates = [&validatePolyline](const SvgWorld &world,
+                                                         const std::string &stage) {
+        for (const auto &group : world.scene)
+        {
+            for (const auto &element : group.elements)
+            {
+                if (auto *loops_ptr = std::get_if<Loops>(&element.data))
+                {
+                    for (const Polyline &poly : *loops_ptr)
+                    {
+                        validatePolyline(poly, stage);
+                    }
+                }
+                else if (auto *poly_ptr = std::get_if<Polyline>(&element.data))
+                {
+                    validatePolyline(*poly_ptr, stage);
+                }
+            }
+        }
+    };
+
+    std::stringstream ss(svg);
+    const auto final_world =
+      SvgWorldTransformers()
+        .addTransformer([](SvgWorld &w) {
+            EXPECT_EQ(w.scene.size(), 3u)
+              << "NoProcessors yet. We should have 2 rect + 1 g at top level.";
+        })
+        .addTransformer(&clipByDefsTransformer) // Сначала CLIP
+        .addTransformer([&validateCoordinates](SvgWorld &w) {
+            validateCoordinates(w, "clippedWorld");
+            EXPECT_EQ(w.scene.size(), 3u) << "Clipped. We should have 2 rect + 1 g at top level.";
+        })
+        .addTransformer(&unionElementsTransformer) // Затем UNION
+        .addTransformer([&validateCoordinates](SvgWorld &w) {
+            validateCoordinates(w, "unionedWorld");
+            EXPECT_EQ(w.scene.size(), 1u) << "Union. Only 1 element remains.";
+        })
+        .buildSurroundingPolygons(loadSvgWorld(ss));
+
+    ASSERT_FALSE(final_world.scene.empty()) << "Scene should not be empty";
+    validateCoordinates(final_world, "finalWorld");
+}
+
 } // namespace Test

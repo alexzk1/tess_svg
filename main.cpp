@@ -113,8 +113,10 @@ int main(const int ac, const char **av)
 
         SvgWorldTransformers transBuilder;
 
-        transBuilder.addTransformer(&unionElementsTransformer)
-          .addTransformer(&clipByDefsTransformer);
+        // Clip, then Union - order is important, as objects could have dedicated personal clip
+        // information which is lost on Union.
+        transBuilder.addTransformer(&clipByDefsTransformer)
+          .addTransformer(&unionElementsTransformer);
 
         const SvgWorld test(transBuilder.buildSurroundingPolygons(loadSvgWorld(sptr)));
         const std::map<std::string, std::function<IDumperPtr()>> factories = {

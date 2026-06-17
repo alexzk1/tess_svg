@@ -122,6 +122,18 @@ add_test(NAME IntegrationTest_Zeppelin
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
+set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_top.svg")
+set(EXPECTED_JSON
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_expected_top.json")
+add_test(NAME IntegrationTest_Zeppelin_Simple_Objects
+         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+                 ${INPUT_SVG} ${EXPECTED_JSON})
+
+set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/clipping.svg")
+set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/clipping.json")
+add_test(NAME IntegrationTest_Clipping
+         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+                 ${INPUT_SVG} ${EXPECTED_JSON})
 # IntegrationTest_F
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/F.svg")
 set(EXPECTED_JSON "${CMAKE_CURRENT_SOURCE_DIR}/test_data/F.json")

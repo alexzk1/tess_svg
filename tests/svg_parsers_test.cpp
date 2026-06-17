@@ -171,6 +171,40 @@ TEST_F(SvgParsersTest, RotationTest)
     EXPECT_NEAR(loops[0][0].y(), 10.0, 1e-9);
 }
 
+TEST_F(SvgParsersTest, RotateAroundPoint)
+{
+    auto node = doc.append_child("path");
+    // Поворот на 90 градусов вокруг точки (10, 10)
+    node.append_attribute("transform") = "rotate(90, 10, 10)";
+    node.append_attribute("d") = "M 20 20"; // Точка должна уйти в (0, 20)
+
+    const auto loops = SvgParsers::parsePath(node, GlVertex::getIdentity());
+
+    ASSERT_EQ(loops[0].size(), 1);
+    // Используем EXPECT_NEAR из-за погрешностей float/double при sin/cos
+    EXPECT_NEAR(loops[0][0].x(), 0.0, 1e-5) << "Rotation X failed";
+    EXPECT_NEAR(loops[0][0].y(), 20.0, 1e-5) << "Rotation Y failed";
+}
+
+TEST_F(SvgParsersTest, RotateComplexSequence)
+{
+    auto node = doc.append_child("path");
+    // В SVG трансформации применяются слева направо к системе координат (right-to-left для
+    // точек). "translate(50, 50) rotate(90, 10, 10)" означает: сначала Rotate, затем Translate.
+    node.append_attribute("transform") = "translate(50, 50) rotate(90, 10, 10)";
+    node.append_attribute("d") = "M 60 60";
+
+    const auto loops = SvgParsers::parsePath(node, GlVertex::getIdentity());
+
+    ASSERT_FALSE(loops.empty());
+    // Математика:
+    // Point (60, 60) rotated 90 deg around (10, 10):
+    // Rel to center: (50, 50). Rotate 90 -> (-50, 50). Abs: (10-50, 10+50) = (-40, 60).
+    // Then translate(50, 50): (-40+50, 60+50) = (10, 110).
+    EXPECT_NEAR(loops[0][0].x(), 10.0, 1e-5) << "Complex Rotation X failed";
+    EXPECT_NEAR(loops[0][0].y(), 110.0, 1e-5) << "Complex Rotation Y failed";
+}
+
 TEST_F(SvgParsersTest, DoubleSameTransformTest)
 {
     auto node = doc.append_child("path");

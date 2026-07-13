@@ -101,6 +101,8 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
                 SvgWorld tmp;
                 RecursionParameters defsRecursion{};
                 parseSvgWorld(tmp, kDefsRecursionZero, childNode, defsRecursion);
+                // Fix Id of clipPath
+                tmp.scene.front().id_ = childNode.attribute("id").as_string();
                 if (recursionLevel >= kDefsRecursionZero) [[unlikely]]
                 {
                     // Case of <defs><clipPath></clipPath></defs>

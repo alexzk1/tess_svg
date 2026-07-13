@@ -711,6 +711,7 @@ TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHoles)
 
 TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesNestedTagClipPath)
 {
+    // Note, naming <path> instead <clipPath> is against standard.
     const std::string svg = R"svg(
         <svg>
             <defs>
@@ -732,12 +733,37 @@ TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesNestedTagClipPath)
                     .buildSurroundingPolygons(loadSvgWorld(ss));
 }
 
+TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesNestedTagClipPathBothNamed)
+{
+    // Note, naming <path> is against standard, here we have both names set and check <clipPath> has
+    // priority.
+    const std::string svg = R"svg(
+        <svg>
+            <defs>
+                <clipPath id="donut_mask">
+                  <path id="invalid_name_given" clip-rule="evenodd" fill-rule="inherit" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+                </clipPath>
+            </defs>
+            <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg);
+    std::ignore = SvgWorldTransformers()
+                    .addTransformer(&clipByDefsTransformer)
+                    .addTransformer([](SvgWorld &w) {
+                        EXPECT_TRUE(hasHole(w));
+                        EXPECT_NEAR(calculateSignedGroupArea(w.scene), 96.0, 1e-4)
+                          << "The clipped object should have the area of the donut (100 - 4).";
+                    })
+                    .buildSurroundingPolygons(loadSvgWorld(ss));
+}
+
 TEST_F(SvgIntegrationTest, ClipByDefPreservesTopologyWithHolesTagClipPath)
 {
     const std::string svg = R"svg(
         <svg>
-            <clipPath>
-                <path id="donut_mask" fill-rule="evenodd" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
+            <clipPath id="donut_mask">
+                <path fill-rule="evenodd" d="M 0 0 L 10 0 L 10 10 L 0 10 Z M 4 4 L 6 4 L 6 6 L 4 6 Z"/>
             </clipPath>
             <rect x="0" y="-2" width="15" height="15" clip-path="url(#donut_mask)"/>
         </svg>)svg";

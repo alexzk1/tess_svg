@@ -957,4 +957,71 @@ TEST_F(SvgIntegrationTest, ClipAndUnion)
     validateCoordinates(final_world, "finalWorld");
 }
 
+TEST_F(SvgIntegrationTest, ViewBoxClippingAtLoadTime)
+{
+    /*
+       Сценарий 1: Частичное пересечение (Partial Overlap)
+       ViewBox: [x=10, y=10, w=50, h=50]
+       Объект: rect x=0, y=0, w=30, h=30 (перекрывает corner 10,10 -> 30,30)
+       Ожидаемая площадь после клиппинга: (30-10)*(30-10) = 400.
+    */
+    const std::string svg_partial = R"svg(
+        <svg viewBox="10 10 50 50">
+            <rect x="0" y="0" width="30" height="30"/>
+        </svg>)svg";
+
+    std::stringstream ss(svg_partial);
+    const auto final_world =
+      loadSvgWorld(ss); // Здесь происходит вызов clipLoopToViewBox внутри parseSvgWorld
+
+    // Проверяем, что объект был обрезан до 400 единиц площади
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 400.0, 1e-4)
+      << "Object should be clipped to the viewBox boundaries [10, 30]";
+
+    /*
+       Сценарий 2: Полное исключение (Full Exclusion)
+       ViewBox: [x=50, y=50, w=10, h=10]
+       Объект: rect x=0, y=0, w=10, h=10
+       Ожидаемый результат: Пустая сцена (все вершины отсечены).
+    */
+    const std::string svg_excluded = R"svg(
+        <svg viewBox="50 50 10 10">
+            <rect x="0" y="0" width="10" height="10"/>
+        </svg>)svg";
+
+    std::stringstream ss2(svg_excluded);
+    const auto final_world_empty = loadSvgWorld(ss2);
+    EXPECT_NEAR(calculateTotalWorldArea(final_world_empty), 0.0, 1e-4)
+      << "Object entirely outside viewBox should result in zero area.";
+
+    /*
+       Сценарий 3: Отрицательные координаты (Negative Offset)
+       ViewBox: [x=-50, y=-50, w=100, h=100]
+       Объект: rect x=-60, y=-60, w=70, h=70
+       Видимая часть объекта: от (-50,-50) до (10,10). Размер 60x60.
+       Ожидаемая площадь: 3600.
+    */
+    const std::string svg_negative = R"svg(
+        <svg viewBox="-50 -50 100 100">
+            <rect x="-60" y="-60" width="70" height="70"/>
+        </svg>)svg";
+
+    std::stringstream ss3(svg_negative);
+    const auto final_world_neg = loadSvgWorld(ss3);
+    EXPECT_NEAR(calculateTotalWorldArea(final_world_neg), 3600.0, 1e-4)
+      << "Clipping should work correctly with negative viewBox offsets.";
+}
+
+TEST_F(SvgIntegrationTest, ViewBoxZeroOrTinySize)
+{
+    // Проверка на устойчивость к экстремальным (нулевым/очень маленьким) размерам
+    const std::string svg_zero =
+      R"svg(<svg viewBox="0 0 0 0"><rect x="-10" y="-10" width="50" height="50"/></svg>)svg";
+
+    std::stringstream ss(svg_zero);
+    const auto final_world = loadSvgWorld(ss);
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 0.0, 1e-7)
+      << "Zero-size viewBox should clip everything to nothing.";
+}
+
 } // namespace Test

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <numeric>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -52,6 +53,30 @@ class TestUtils
         return area / 2.0;
     }
 
+    static double calculateElementArea(const ParsedSvgElement &element)
+    {
+        return std::visit(
+          [](auto &&arg) -> double {
+              using T = std::decay_t<decltype(arg)>;
+              if constexpr (std::is_same_v<T, Polyline>)
+              {
+                  return calculatePolygonArea(arg);
+              }
+              else if constexpr (std::is_same_v<T, Loops>)
+              {
+                  // Если это группа контуров, суммируем их площади
+                  double area = 0.0;
+                  for (const auto &loop : arg)
+                  {
+                      area += calculatePolygonArea(loop);
+                  }
+                  return std::abs(area); // Для простоты теста берем модуль
+              }
+              return 0.0;
+          },
+          element.data);
+    }
+
     static double calculateTotalWorldArea(const SvgWorld &world)
     {
         double total_area = 0.0;
@@ -59,7 +84,7 @@ class TestUtils
         {
             for (const auto &tess : group.elements)
             {
-                total_area += calculatePolygonArea(tess.finalData());
+                total_area += calculateElementArea(tess);
             }
         }
         return total_area;

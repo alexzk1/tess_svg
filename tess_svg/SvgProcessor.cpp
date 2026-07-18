@@ -45,6 +45,96 @@ struct RecursionParameters
     Loops singleNodeLoops{};
 };
 
+// Вспомогательная функция для отсечения одного ребра против одной стороны границы (AABB Clipping)
+void clipAgainstSide(Polyline &loop, auto isInside, auto getIntersectFunc)
+{
+    if (loop.empty())
+    {
+        return;
+    }
+
+    std::vector<GlVertex> output;
+    output.reserve(loop.size());
+
+    for (std::size_t i = 0; i < loop.size(); ++i)
+    {
+        const auto &current = loop[i];
+        // Для замкнутых контуров используем следующий элемент, последний соединяем с первым
+        const auto &next = loop[(i + 1) % loop.size()];
+
+        const bool currInside = isInside(current);
+        const bool nextInside = isInside(next);
+
+        if (currInside && nextInside)
+        {
+            // Оба внутри — просто берем следующую точку
+            output.push_back(next);
+        }
+        else if (currInside && !nextInside)
+        {
+            // Выход из области: добавляем точку пересечения
+            output.push_back(getIntersectFunc(current, next));
+        }
+        else if (!currInside && nextInside)
+        {
+            // Вход в область: добавляем точку пересечения И саму следующую точку
+            output.push_back(getIntersectFunc(current, next));
+            output.push_back(next);
+        }
+    }
+    loop = std::move(output);
+}
+
+void clipLoopToViewBox(std::vector<GlVertex> &loop, const SvgViewBox &box)
+{
+    if (loop.empty())
+        return;
+
+    // 1. Отсекаем по Левой границе (X < left)
+    clipAgainstSide(
+      loop,
+      [&](const GlVertex &p) {
+          return p.x() >= box.left;
+      },
+      [&](const GlVertex &a, const GlVertex &b) {
+          const float t = (box.left - a.x()) / (b.x() - a.x());
+          return GlVertex{box.left, a.y() + t * (b.y() - a.y())};
+      });
+
+    // 2. Отсекаем по Правой границе (X > right)
+    clipAgainstSide(
+      loop,
+      [&](const GlVertex &p) {
+          return p.x() <= (box.left + box.width);
+      },
+      [&](const GlVertex &a, const GlVertex &b) {
+          const float t = ((box.left + box.width) - a.x()) / (b.x() - a.x());
+          return GlVertex{box.left + box.width, a.y() + t * (b.y() - a.y())};
+      });
+
+    // 3. Отсекаем по Верхней границе (Y < top)
+    clipAgainstSide(
+      loop,
+      [&](const GlVertex &p) {
+          return p.y() >= box.top;
+      },
+      [&](const GlVertex &a, const GlVertex &b) {
+          float t = (box.top - a.y()) / (b.y() - a.y());
+          return GlVertex{a.x() + t * (b.x() - a.x()), box.top};
+      });
+
+    // 4. Отсекаем по Нижней границе (Y > bottom)
+    clipAgainstSide(
+      loop,
+      [&](const GlVertex &p) {
+          return p.y() <= (box.top + box.height);
+      },
+      [&](const GlVertex &a, const GlVertex &b) {
+          float t = ((box.top + box.height) - a.y()) / (b.y() - a.y());
+          return GlVertex{a.x() + t * (b.x() - a.x()), box.top + box.height};
+      });
+}
+
 void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml_node &node,
                    RecursionParameters &params)
 {
@@ -59,6 +149,13 @@ void parseSvgWorld(SvgWorld &output, std::size_t recursionLevel, const pugi::xml
               "SVG is broken. Root object must be <svg> or <defs> or <clipPath>.");
         }
         params.singleNodeLoops = parser.parse(params.parentTrans);
+        if (output.viewBox.has_value())
+        {
+            for (auto &loop : params.singleNodeLoops)
+            {
+                clipLoopToViewBox(loop, *output.viewBox);
+            }
+        }
     }
     else
     {
@@ -295,9 +392,7 @@ SvgWorld loadSvgWorld(std::istream &src)
         throw xmlerror("Svg file must have root tag <svg>.");
     }
 
-    RecursionParameters initialParams{};
-    parseSvgWorld(world, 0u, doc.first_child(), initialParams);
-
+    // Set the field before recursion, as it may use viewBox.
     if (const char *viewBox_raw = doc.first_child().attribute("viewBox").value();
         viewBox_raw && *viewBox_raw != '\0')
     {
@@ -317,6 +412,9 @@ SvgWorld loadSvgWorld(std::istream &src)
             throw xmlerror("Failed to parse viewBox: " + std::string(viewBox_raw));
         }
     }
+
+    RecursionParameters initialParams{};
+    parseSvgWorld(world, 0u, doc.first_child(), initialParams);
 
     return world;
 }

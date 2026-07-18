@@ -2,10 +2,11 @@
 # $1 - path to binary
 # $2 - input SVG
 # $3 - expected JSON
+# $4 - any extra optional parameter
 
 TEMP_JSON=$(mktemp)
 
-$1 -i $2 -J --epoints 128 > $TEMP_JSON
+$1 -i $2 $4 -J --epoints 128 > $TEMP_JSON
 
 if diff -w $3 $TEMP_JSON > /dev/null; then
     echo "Test Passed!"

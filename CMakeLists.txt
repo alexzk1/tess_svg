@@ -122,6 +122,14 @@ add_test(NAME IntegrationTest_Zeppelin
          COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
                  ${INPUT_SVG} ${EXPECTED_JSON})
 
+# IntegrationTest_Zeppelin no clip
+set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_path.svg")
+set(EXPECTED_JSON
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_expected_noclip.json")
+add_test(NAME IntegrationTest_Zeppelin_NoClip
+         COMMAND bash ${TEST_SCRIPT} $<TARGET_FILE:${PROJECT_NAME}>
+                 ${INPUT_SVG} ${EXPECTED_JSON} "--ignore-viewbox")
+
 set(INPUT_SVG "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_top.svg")
 set(EXPECTED_JSON
     "${CMAKE_CURRENT_SOURCE_DIR}/test_data/zeppelin_expected_top.json")

@@ -41,11 +41,13 @@ int main(const int ac, const char **av)
           "custom prefix of the generated constants names, otherwise tries to use filenames, then "
           "empty.")
 
-          ("bflatness", value<float>()->default_value(0.5f),
-           "how many pixels rasterized beizer curve can differ from actual one.")
+          ("ignore-viewbox,V", "If set it will ignore viewBox attribute (do not clip by it).")
 
-            ("epoints", value<int>()->default_value(1024),
-             "amount of points on ellipse to use on rasterize")
+            ("bflatness", value<float>()->default_value(0.5f),
+             "how many pixels rasterized beizer curve can differ from actual one.")
+
+              ("epoints", value<int>()->default_value(1024),
+               "amount of points on ellipse to use on rasterize")
 
           // should be same options as below in map keys
           ("json,J", "output as JSON (packed)")
@@ -90,6 +92,8 @@ int main(const int ac, const char **av)
             return (error_opts) ? 1 : 0;
         }
 
+        const bool doViewBoxClipping = vm.count("ignore-viewbox") == 0;
+
         auto fn = (vm.count("input")) ? vm["input"].as<std::string>() : "";
         std::fstream inp;
         if (!fn.empty())
@@ -118,7 +122,8 @@ int main(const int ac, const char **av)
         transBuilder.addTransformer(&clipByDefsTransformer)
           .addTransformer(&unionElementsTransformer);
 
-        const SvgWorld test(transBuilder.buildSurroundingPolygons(loadSvgWorld(sptr)));
+        const SvgWorld test(
+          transBuilder.buildSurroundingPolygons(loadSvgWorld(sptr, doViewBoxClipping)));
         const std::map<std::string, std::function<IDumperPtr()>> factories = {
           // should be same "options" as above in menu
           {"json",

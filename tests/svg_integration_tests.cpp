@@ -1024,4 +1024,15 @@ TEST_F(SvgIntegrationTest, ViewBoxZeroOrTinySize)
       << "Zero-size viewBox should clip everything to nothing.";
 }
 
+TEST_F(SvgIntegrationTest, NoClippingViewBox)
+{
+    static constexpr bool kDisableClip = false;
+    const std::string svg_zero =
+      R"svg(<svg viewBox="0 0 0 0"><rect x="-10" y="-10" width="50" height="50"/></svg>)svg";
+
+    std::stringstream ss(svg_zero);
+    const auto final_world = loadSvgWorld(ss, kDisableClip);
+    EXPECT_NEAR(calculateTotalWorldArea(final_world), 2500, 1e-4) << "Clip was disabled.";
+}
+
 } // namespace Test

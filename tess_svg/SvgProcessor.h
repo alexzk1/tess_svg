@@ -45,7 +45,7 @@ class SvgWorldTransformers
 /// @brief Load SVG file/data for further processing, it does parsing of it like accounting nested
 /// translations.
 /// @return SvgWolrd object which contains loaded SVG data translated into World coordinates.
-SvgWorld loadSvgWorld(std::istream &src);
+SvgWorld loadSvgWorld(std::istream &src, bool clipByViewBox = true);
 
 /**
  * @brief Merges all primitives within each group into a single set of contours (Loops).

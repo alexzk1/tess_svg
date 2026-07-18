@@ -374,7 +374,7 @@ SvgGroup clipGroupElements(const ClipRegistry &clips, const SvgGroup &original_g
 
 } // namespace
 
-SvgWorld loadSvgWorld(std::istream &src)
+SvgWorld loadSvgWorld(std::istream &src, bool clipByViewBox)
 {
     SvgWorld world;
     pugi::xml_document doc;
@@ -393,26 +393,28 @@ SvgWorld loadSvgWorld(std::istream &src)
     }
 
     // Set the field before recursion, as it may use viewBox.
-    if (const char *viewBox_raw = doc.first_child().attribute("viewBox").value();
-        viewBox_raw && *viewBox_raw != '\0')
+    if (clipByViewBox)
     {
-        std::istringstream ss(viewBox_raw);
-        if (float x, y, w, h; ss >> x >> y >> w >> h)
+        if (const char *viewBox_raw = doc.first_child().attribute("viewBox").value();
+            viewBox_raw && *viewBox_raw != '\0')
         {
-            world.viewBox = SvgViewBox{
-              .left = x,
-              .top = y,
-              .width = w,
-              .height = h,
-            };
-        }
-        else
-        {
-            // We had viewbox and it was wrong - terminate, let caller to figure.
-            throw xmlerror("Failed to parse viewBox: " + std::string(viewBox_raw));
+            std::istringstream ss(viewBox_raw);
+            if (float x, y, w, h; ss >> x >> y >> w >> h)
+            {
+                world.viewBox = SvgViewBox{
+                  .left = x,
+                  .top = y,
+                  .width = w,
+                  .height = h,
+                };
+            }
+            else
+            {
+                // We had viewbox and it was wrong - terminate, let caller to figure.
+                throw xmlerror("Failed to parse viewBox: " + std::string(viewBox_raw));
+            }
         }
     }
-
     RecursionParameters initialParams{};
     parseSvgWorld(world, 0u, doc.first_child(), initialParams);
 

@@ -17,6 +17,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -289,8 +290,33 @@ SvgWorld loadSvgWorld(std::istream &src)
         throw xmlerror(svgTree.description());
     }
 
+    if (std::string(doc.first_child().name()) != "svg")
+    {
+        throw xmlerror("Svg file must have root tag <svg>.");
+    }
+
     RecursionParameters initialParams{};
     parseSvgWorld(world, 0u, doc.first_child(), initialParams);
+
+    if (const char *viewBox_raw = doc.first_child().attribute("viewBox").value();
+        viewBox_raw && *viewBox_raw != '\0')
+    {
+        std::istringstream ss(viewBox_raw);
+        if (float x, y, w, h; ss >> x >> y >> w >> h)
+        {
+            world.viewBox = SvgViewBox{
+              .left = x,
+              .top = y,
+              .width = w,
+              .height = h,
+            };
+        }
+        else
+        {
+            // We had viewbox and it was wrong - terminate, let caller to figure.
+            throw xmlerror("Failed to parse viewBox: " + std::string(viewBox_raw));
+        }
+    }
 
     return world;
 }

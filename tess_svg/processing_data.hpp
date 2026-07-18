@@ -8,6 +8,7 @@
 
 #include <concepts>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -20,6 +21,15 @@ concept HasAttributesMap = requires(T t) {
     {
         t.attributes.find(std::declval<std::string>())
     } -> std::same_as<decltype(t.attributes.end())>;
+};
+
+/// @brief SVG viewbox.
+struct SvgViewBox
+{
+    float left;
+    float top;
+    float width;
+    float height;
 };
 
 /// @brief Prepared SVG. Each element is converted into polygon and translated into World space.
@@ -162,11 +172,14 @@ struct SvgWorld
     std::vector<SvgGroup> scene;
     /// @brief <defs> geometrical objects.
     std::vector<SvgGroup> defs;
+    /// @brief ViewBox contained into original SVG (if any).
+    std::optional<SvgViewBox> viewBox{std::nullopt};
 
     void reset()
     {
         scene.clear();
         defs.clear();
+        viewBox = std::nullopt;
     }
 };
 

@@ -8,6 +8,8 @@
 #include <charconv>
 #include <cmath>
 #include <cstddef>
+#include <exception>
+#include <format>
 #include <iostream>
 #include <numbers>
 #include <optional>
@@ -214,7 +216,12 @@ void ellipseArc(const GlVertex &start, double rx, double ry, double xAxisRotatio
 
 Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &translate)
 {
-    static const std::regex add_space("([a-zA-Z])([0-9|\\.|\\-])");
+    // Separate a path command letter from a following number (e.g. "M10" -> "M 10",
+    // "l-3" -> "l -3"). Note: 'e'/'E' are intentionally excluded from the command
+    // class -- in SVG path data they are only the exponent marker of scientific
+    // notation (e.g. "1.42e-14"), never a command, so splitting them from their
+    // exponent sign would corrupt the number (and crash the coordinate parser).
+    static const std::regex add_space("([a-df-zA-DF-Z])([0-9|\\.|\\-])");
     std::string srccopy = std::regex_replace(src, add_space, "$1 $2");
 
     // Add space before - sign.
@@ -531,17 +538,39 @@ Loops TagDParser::split(const std::string &src, const GlVertex::trans_matrix_t &
 GlVertex TagDParser::getXY(std::vector<std::string> &src, size_t &index)
 {
     index += 2;
-    return {src.at(index - 1), src.at(index)};
+    try
+    {
+        return {src.at(index - 1), src.at(index)};
+    }
+    catch (std::exception &e)
+    {
+        throw std::runtime_error(
+          std::format("getXY(): {}. X = {}, Y = {}", e.what(), src.at(index - 1), src.at(index)));
+    }
 }
 
 GlVertex TagDParser::getX(std::vector<std::string> &src, size_t &index)
 {
-    return {src.at(++index), "0"};
+    try
+    {
+        return {src.at(++index), "0"};
+    }
+    catch (std::exception &e)
+    {
+        throw std::runtime_error(std::format("getX(): {}. X = {}", e.what(), src.at(index)));
+    }
 }
 
 GlVertex TagDParser::getY(std::vector<std::string> &src, size_t &index)
 {
-    return {"0", src.at(++index)};
+    try
+    {
+        return {"0", src.at(++index)};
+    }
+    catch (std::exception &e)
+    {
+        throw std::runtime_error(std::format("getY(): {}. Y = {}", e.what(), src.at(index)));
+    }
 }
 
 void TagDParser::quadraticBeizer(const GlVertex &x0y0, const GlVertex &x1y1, const GlVertex &xy,

@@ -204,6 +204,21 @@ TEST(TagDParserTest, FractionalNumbersWithoutLeadingZero)
     EXPECT_DOUBLE_EQ(loops[0][1].x(), -0.5);
 }
 
+// Тест на научную нотацию (экпоненту) в координатах.
+// 'e'/'E' — это маркер степени, а не команда, поэтому "1.42e-14"
+// должен распарситься как одно число, а не разделиться на "1.42e" и "-14".
+TEST(TagDParserTest, ScientificNotationCoordinate)
+{
+    const std::string path_data = "M1.4210854715202e-14 1.0 L-3.2e+5 2.0";
+    const auto loops = TagDParser::split(path_data, createIdentityMatrix());
+
+    ASSERT_EQ(loops[0].size(), 2);
+    EXPECT_DOUBLE_EQ(loops[0][0].x(), 1.4210854715202e-14);
+    EXPECT_DOUBLE_EQ(loops[0][0].y(), 1.0);
+    EXPECT_DOUBLE_EQ(loops[0][1].x(), -3.2e5);
+    EXPECT_DOUBLE_EQ(loops[0][1].y(), 2.0);
+}
+
 // Тест на эллиптическую арку (команда A/a)
 TEST(TagDParserTest, EllipticArcCommand)
 {
